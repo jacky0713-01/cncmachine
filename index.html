@@ -3,17 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>2026 Capacity Roadmap Metals, Graphite, W/Mo/Ta, Silicon</title>
+  <title>Enterprise Capacity Roadmap & Machine Analytics</title>
   <style>
     :root {
-      --bg-color: #0f172a;
+      --bg-color: #0b1329;
       --card-bg: #1e293b;
       --border-color: #334155;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --accent: #38bdf8;
       --accent-hover: #0284c7;
-      --highlight: #34d399;
+      --success: #34d399;
+      --warning: #fbbf24;
       --danger: #ef4444;
     }
 
@@ -23,7 +24,7 @@
       height: 100%;
       margin: 0;
       padding: 0;
-      overflow: hidden; /* 一頁式滿版控制 */
+      overflow: hidden;
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       background-color: var(--bg-color);
       color: var(--text-main);
@@ -33,28 +34,40 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
-      padding: 20px 24px;
+      padding: 16px 24px;
     }
 
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
       flex-shrink: 0;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge-pro {
+      background: linear-gradient(135deg, #0284c7, #6366f1);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
     }
 
     h1 {
-      margin: 0 0 4px 0;
-      font-size: 1.5rem;
+      margin: 0;
+      font-size: 1.4rem;
       font-weight: 700;
       color: var(--accent);
-      letter-spacing: -0.01em;
-    }
-
-    .subtitle {
-      color: var(--text-muted);
-      font-size: 0.85rem;
     }
 
     .auth-box {
@@ -63,7 +76,7 @@
       gap: 12px;
       background: var(--card-bg);
       padding: 6px 14px;
-      border-radius: 10px;
+      border-radius: 8px;
       border: 1px solid var(--border-color);
     }
 
@@ -72,10 +85,37 @@
       color: var(--text-muted);
     }
 
+    /* 分頁標籤列 (Tabs) */
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: #0284c7;
+      color: #fff;
+      border-color: #38bdf8;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+    }
+
     .toolbar {
       display: flex;
       gap: 12px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
       align-items: center;
       flex-shrink: 0;
@@ -85,8 +125,8 @@
       background-color: var(--card-bg);
       color: var(--text-main);
       border: 1px solid var(--border-color);
-      padding: 7px 14px;
-      border-radius: 8px;
+      padding: 6px 12px;
+      border-radius: 6px;
       cursor: pointer;
       font-weight: 600;
       font-size: 0.85rem;
@@ -98,28 +138,24 @@
       color: var(--accent);
     }
 
-    .btn-primary {
-      background-color: #0284c7;
-      color: #fff;
-      border: none;
-    }
+    .btn-primary { background-color: #0284c7; color: #fff; border: none; }
     .btn-primary:hover { background-color: #0369a1; color: #fff; }
-
-    .btn-danger {
-      background-color: rgba(239, 68, 68, 0.2);
-      color: #f87171;
-      border: 1px solid #ef4444;
-    }
+    .btn-danger { background-color: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
     .btn-danger:hover { background-color: #dc2626; color: #fff; }
 
-    /* 一頁式表格滿版容器 */
-    .table-container {
+    /* 視圖內容區塊 */
+    .tab-content {
+      display: none;
       flex: 1;
       overflow: auto;
       background-color: var(--card-bg);
-      border-radius: 12px;
+      border-radius: 10px;
       border: 1px solid var(--border-color);
       box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    }
+
+    .tab-content.active {
+      display: block;
     }
 
     table {
@@ -160,34 +196,51 @@
       background-color: rgba(15, 23, 42, 0.5);
     }
 
-    /* 唯讀狀態下控制 */
-    body.read-only .editable {
-      cursor: default;
+    /* 分析頁面面板卡牌 */
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      padding: 20px;
     }
 
-    body:not(.read-only) .editable {
-      cursor: pointer;
-      transition: background-color 0.15s;
+    .stat-card {
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
     }
 
+    .stat-card-title {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .stat-card-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--success);
+    }
+
+    .delta-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .delta-plus { background: rgba(52, 211, 153, 0.15); color: var(--success); border: 1px solid var(--success); }
+    .delta-new { background: rgba(56, 189, 248, 0.15); color: var(--accent); border: 1px solid var(--accent); }
+
+    body.read-only .editable { cursor: default; }
+    body:not(.read-only) .editable { cursor: pointer; }
     body:not(.read-only) .editable:hover {
       background-color: rgba(56, 189, 248, 0.15) !important;
       outline: 1px dashed var(--accent);
     }
 
-    .highlight-val {
-      color: var(--accent);
-      font-weight: 700;
-    }
-
-    .action-btn {
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-    
+    .action-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; }
     body:not(.read-only) .action-btn:hover { color: var(--danger); }
     body.read-only .action-btn { opacity: 0.3; cursor: not-allowed; }
   </style>
@@ -196,9 +249,9 @@
 
   <div class="app-container">
     <header>
-      <div>
-        <h1>2026 Capacity Roadmap Metals, Graphite, W/Mo/Ta, Silicon</h1>
-        <div class="subtitle" id="tip-text">💡 當前為唯讀模式。管理者登入後即可雙擊編輯內容。</div>
+      <div class="brand-title">
+        <span class="badge-pro">PRO ENTERPRISE</span>
+        <h1>2026 Capacity Roadmap & Machine Analytics</h1>
       </div>
       <div class="auth-box">
         <span id="auth-status" class="auth-status">狀態：唯讀模式</span>
@@ -206,29 +259,68 @@
       </div>
     </header>
 
-    <div class="toolbar">
-      <button id="add-row-btn" class="btn btn-primary">➕ 新增資料列</button>
-      <button id="export-json-btn" class="btn">💾 備份 JSON</button>
-      <button id="import-btn" class="btn">📤 匯入 JSON 備份</button>
-      <button id="reset-btn" class="btn btn-danger">🔄 重置預設資料</button>
-      <input type="file" id="import-file-input" accept=".json" style="display: none;">
+    <!-- 主分頁導覽 -->
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('roadmap-tab')">📊 Capacity Roadmap 圖鑑表</button>
+      <button class="tab-btn" onclick="switchTab('analytics-tab')">📈 機台增減動態分析</button>
     </div>
 
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th style="width: 15%;">Material</th>
-            <th style="width: 25%;">Process / Machine</th>
-            <th style="width: 15%;">2025</th>
-            <th style="width: 20%;">2026</th>
-            <th style="width: 20%;">2026 2H</th>
-            <th style="width: 5%; text-align: center;">操作</th>
-          </tr>
-        </thead>
-        <tbody id="table-body">
-        </tbody>
-      </table>
+    <!-- 頁面一：Roadmap 圖鑑表 -->
+    <div id="roadmap-tab" class="tab-content active">
+      <div class="toolbar" style="padding: 12px 16px 0 16px;">
+        <button id="add-row-btn" class="btn btn-primary">➕ 新增資料列</button>
+        <button id="export-json-btn" class="btn">💾 備份 JSON</button>
+        <button id="import-btn" class="btn">📤 匯入 JSON 備份</button>
+        <button id="reset-btn" class="btn btn-danger">🔄 重置預設資料</button>
+        <input type="file" id="import-file-input" accept=".json" style="display: none;">
+      </div>
+      <div style="padding: 12px 16px;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 15%;">Material</th>
+              <th style="width: 25%;">Process / Machine</th>
+              <th style="width: 15%;">2025</th>
+              <th style="width: 20%;">2026</th>
+              <th style="width: 20%;">2026 2H</th>
+              <th style="width: 5%; text-align: center;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 頁面二：機台增減分析 (Analytics) -->
+    <div id="analytics-tab" class="tab-content">
+      <div class="analytics-grid">
+        <div class="stat-card">
+          <div class="stat-card-title">2025 -> 2026 擴產項目</div>
+          <div id="stat-2026-exp" class="stat-value">0 項</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">2026 2H 新增擴產項目</div>
+          <div id="stat-20262h-exp" class="stat-value" style="color: #38bdf8;">0 項</div>
+        </div>
+      </div>
+      <div style="padding: 0 20px 20px 20px;">
+        <h3 style="color: var(--accent); margin-top: 0;">🔍 機台擴產與異動明細分析清單</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Material</th>
+              <th>Process / Machine</th>
+              <th>2025 基準</th>
+              <th>2026 變更內容</th>
+              <th>2026 2H 變更內容</th>
+              <th>異動狀態分類</th>
+            </tr>
+          </thead>
+          <tbody id="analytics-tbody">
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -236,7 +328,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-    // Firebase 專案設定 (已整合您前案之配置)
     const firebaseConfig = {
       apiKey: "AIzaSyBh4wNEwXzGOxKOJqj3Akg7gj1WxFHzmNQ",
       authDomain: "throw-a-coin.firebaseapp.com",
@@ -307,9 +398,22 @@
     let roadmapData = JSON.parse(localStorage.getItem('roadmap_data')) || initialData;
 
     const tbody = document.getElementById('table-body');
+    const analyticsTbody = document.getElementById('analytics-tbody');
     const authBtn = document.getElementById('auth-btn');
     const authStatus = document.getElementById('auth-status');
-    const tipText = document.getElementById('tip-text');
+
+    // 分頁切換函式
+    window.switchTab = (tabId) => {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+      event.target.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+
+      if (tabId === 'analytics-tab') {
+        renderAnalytics();
+      }
+    };
 
     function renderTable() {
       tbody.innerHTML = '';
@@ -341,6 +445,44 @@
       });
     }
 
+    // 機台增減動態分析渲染引擎
+    function renderAnalytics() {
+      analyticsTbody.innerHTML = '';
+      let exp2026Count = 0;
+      let exp20262hCount = 0;
+
+      roadmapData.forEach(row => {
+        const isChanged2026 = row.y2026 && row.y2026 !== row.y2025;
+        const isChanged20262h = row.y2026_2h && row.y2026_2h !== row.y2026;
+
+        if (isChanged2026 || isChanged20262h || !row.y2025) {
+          if (isChanged2026) exp2026Count++;
+          if (isChanged20262h) exp20262hCount++;
+
+          let badgeHtml = '';
+          if (!row.y2025 && (row.y2026 || row.y2026_2h)) {
+            badgeHtml = `<span class="delta-badge delta-new">✨ 全新導入機台</span>`;
+          } else {
+            badgeHtml = `<span class="delta-badge delta-plus">📈 產能擴充/異動</span>`;
+          }
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="font-weight: 700; color: var(--accent);">${row.material}</td>
+            <td><strong>${row.process}</strong></td>
+            <td>${row.y2025 || '<span style="color:var(--text-muted);">無 (0)</span>'}</td>
+            <td style="color: ${isChanged2026 ? '#38bdf8' : 'inherit'}; font-weight: ${isChanged2026 ? '700' : 'normal'};">${row.y2026 || '-'}</td>
+            <td style="color: ${isChanged20262h ? '#34d399' : 'inherit'}; font-weight: ${isChanged20262h ? '700' : 'normal'};">${row.y2026_2h || '-'}</td>
+            <td>${badgeHtml}</td>
+          `;
+          analyticsTbody.appendChild(tr);
+        }
+      });
+
+      document.getElementById('stat-2026-exp').innerText = `${exp2026Count} 項機台擴增`;
+      document.getElementById('stat-20262h-exp').innerText = `${exp20262hCount} 項機台擴增`;
+    }
+
     // 登入狀態監控
     onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -349,18 +491,15 @@
         authBtn.innerText = "登出";
         authBtn.classList.remove("btn-primary");
         authBtn.classList.add("btn-danger");
-        tipText.innerText = "💡 已啟用編輯權限：雙擊（Double Click）表格內的任何數字或名稱即可修改。";
       } else {
         document.body.classList.add("read-only");
         authStatus.innerText = "狀態：唯讀模式";
         authBtn.innerText = "管理員登入";
         authBtn.classList.remove("btn-danger");
         authBtn.classList.add("btn-primary");
-        tipText.innerText = "💡 當前為唯讀模式。管理者登入後即可雙擊編輯內容。";
       }
     });
 
-    // 登入/登出按鈕邏輯
     authBtn.onclick = async () => {
       if (auth.currentUser) {
         await signOut(auth);
@@ -439,7 +578,6 @@
       renderTable();
     }
 
-    // 匯出 JSON
     document.getElementById('export-json-btn').onclick = () => {
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(roadmapData, null, 2));
       const downloadAnchor = document.createElement('a');
@@ -450,7 +588,6 @@
       downloadAnchor.remove();
     };
 
-    // 匯入 JSON
     const importBtn = document.getElementById('import-btn');
     const importFileInput = document.getElementById('import-file-input');
 
@@ -485,7 +622,6 @@
       reader.readAsText(file);
     };
 
-    // 重置資料
     document.getElementById('reset-btn').onclick = () => {
       if (!auth.currentUser) {
         alert("權限不足：必須登入管理員帳號才能重置資料！");
@@ -498,7 +634,6 @@
       }
     };
 
-    // 初始化渲染
     renderTable();
   </script>
 </body>
