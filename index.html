@@ -335,79 +335,374 @@
   </div>
 
   <script type="module">
-   // 📸 1. 圖鑑表頁面：高畫質一鍵匯出圖片 (PNG)
-document.getElementById('export-roadmap-img-btn').onclick = () => {
-  const exportArea = document.getElementById('roadmap-export-area');
-  const exportBtn = document.getElementById('export-roadmap-img-btn');
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-  exportBtn.innerText = "⏳ 高畫質圖片生成中...";
-  exportBtn.disabled = true;
+    const firebaseConfig = {
+      apiKey: "AIzaSyBh4wNEwXzGOxKOJqj3Akg7gj1WxFHzmNQ",
+      authDomain: "throw-a-coin.firebaseapp.com",
+      projectId: "throw-a-coin",
+      storageBucket: "throw-a-coin.firebasestorage.app",
+      messagingSenderId: "79225369395",
+      appId: "1:79225369395:web:ac6b6dadb1154159c40446"
+    };
 
-  html2canvas(exportArea, {
-    backgroundColor: '#1e293b',
-    scale: 3, // 升級為 3 倍超高解析度（防文字模糊）
-    useCORS: true, // 支援跨域資源
-    logging: false,
-    windowWidth: exportArea.scrollWidth,
-    windowHeight: exportArea.scrollHeight,
-    onclone: (clonedDoc) => {
-      // 確保複製出的備份畫布能夠展開完整表格，不受滾動條限制
-      const clonedArea = clonedDoc.getElementById('roadmap-export-area');
-      clonedArea.style.maxHeight = 'none';
-      clonedArea.style.overflow = 'visible';
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const initialData = [
+      // Metal: AL/SST
+      { material: "Metal: AL/SST", process: "3 Axis Milling", y2025: "38", y2026: "38", y2026_2h: "38" },
+      { material: "Metal: AL/SST", process: "Auto 3 Axis Milling", y2025: "1", y2026: "1", y2026_2h: "1" },
+      { material: "Metal: AL/SST", process: "Turning-Milling", y2025: "10", y2026: "10", y2026_2h: "10" },
+      { material: "Metal: AL/SST", process: "Grinding", y2025: "7", y2026: "7", y2026_2h: "7" },
+      { material: "Metal: AL/SST", process: "Lapping", y2025: "6", y2026: "6", y2026_2h: "6" },
+      { material: "Metal: AL/SST", process: "Lathe", y2025: "2", y2026: "2", y2026_2h: "2" },
+      { material: "Metal: AL/SST", process: "Multi Axis Milling", y2025: "22", y2026: "22", y2026_2h: "25 (2026 1H +3)" },
+      { material: "Metal: AL/SST", process: "SAWING", y2025: "1", y2026: "1", y2026_2h: "1" },
+      { material: "Metal: AL/SST", process: "Water Jet Cutter", y2025: "1", y2026: "1", y2026_2h: "1" },
+      { material: "Metal: AL/SST", process: "EP(Non-Al)", y2025: "1", y2026: "1", y2026_2h: "1" },
+      { material: "Metal: AL/SST", process: "Auto Anodizing", y2025: "1", y2026: "1", y2026_2h: "1" },
+      { material: "Metal: AL/SST", process: "ENP(Al)", y2025: "1", y2026: "1", y2026_2h: "1" },
+      { material: "Metal: AL/SST", process: "ENP(Non-Al)", y2025: "1", y2026: "1", y2026_2h: "1" },
+      { material: "Metal: AL/SST", process: "TIG Welding", y2025: "3", y2026: "3", y2026_2h: "3" },
+      { material: "Metal: AL/SST", process: "E Beam Welding", y2025: "1", y2026: "1", y2026_2h: "1" },
+      { material: "Metal: AL/SST", process: "Auto Clean Line", y2025: "1", y2026: "1", y2026_2h: "1" },
+      { material: "Metal: AL/SST", process: "Clean Line", y2025: "1", y2026: "1", y2026_2h: "" },
+      { material: "Metal: AL/SST", process: "Auto ENP(Cylinder)", y2025: "", y2026: "1 (2025+1)", y2026_2h: "1" },
+      { material: "Metal: AL/SST", process: "Vacuum Brazing", y2025: "", y2026: "1 (2025+1)", y2026_2h: "1" },
+
+      // Graphite
+      { material: "Graphite", process: "3 Axis Milling", y2025: "21", y2026: "21", y2026_2h: "21" },
+      { material: "Graphite", process: "NJ: 3 Axis Milling", y2025: "10", y2026: "10", y2026_2h: "10" },
+      { material: "Graphite", process: "Turning-Milling", y2025: "2", y2026: "2", y2026_2h: "2" },
+      { material: "Graphite", process: "Grinding", y2025: "1", y2026: "1", y2026_2h: "1" },
+      { material: "Graphite", process: "Lathe", y2025: "5", y2026: "5", y2026_2h: "5" },
+      { material: "Graphite", process: "Thermo Molding", y2025: "1", y2026: "1", y2026_2h: "3 (2026 1H +2)" },
+      { material: "Graphite", process: "SAWING", y2025: "3", y2026: "3", y2026_2h: "3" },
+      { material: "Graphite", process: "Wire Cut", y2025: "3", y2026: "3", y2026_2h: "3" },
+      { material: "Graphite", process: "Auto Clean Line", y2025: "1", y2026: "1", y2026_2h: "1" },
+      { material: "Graphite", process: "Lathe", y2025: "", y2026: "", y2026_2h: "1 (2026 1H +1)" },
+      { material: "Graphite", process: "Turning-Milling", y2025: "", y2026: "", y2026_2h: "1 (2026 1H +1)" },
+
+      // W/Mo/Ta
+      { material: "W/Mo/Ta", process: "3 Axis Milling", y2025: "45", y2026: "47 (2025+2)", y2026_2h: "47" },
+      { material: "W/Mo/Ta", process: "JP: 3 Axis Milling", y2025: "", y2026: "", y2026_2h: "7 (2026 1H +7)" },
+      { material: "W/Mo/Ta", process: "Auto 3 Axis Milling", y2025: "12", y2026: "12", y2026_2h: "16 (2026 1H +4)" },
+      { material: "W/Mo/Ta", process: "Auto Lathe", y2025: "16", y2026: "16", y2026_2h: "16" },
+      { material: "W/Mo/Ta", process: "Turning-Milling", y2025: "4", y2026: "4", y2026_2h: "4" },
+      { material: "W/Mo/Ta", process: "EDM", y2025: "7", y2026: "7", y2026_2h: "7" },
+      { material: "W/Mo/Ta", process: "JP: Grinding", y2025: "", y2026: "", y2026_2h: "1 (2026 1H +1)" },
+      { material: "W/Mo/Ta", process: "Grinding", y2025: "7", y2026: "8 (2025+1)", y2026_2h: "8" },
+      { material: "W/Mo/Ta", process: "Lathe", y2025: "16", y2026: "16", y2026_2h: "17 (2026 1H +1)" },
+      { material: "W/Mo/Ta", process: "JP: Wire Cut", y2025: "", y2026: "", y2026_2h: "1 (2026 1H +1)" },
+      { material: "W/Mo/Ta", process: "Wire Cut", y2025: "48", y2026: "48", y2026_2h: "48" },
+      { material: "W/Mo/Ta", process: "Annealing", y2025: "1", y2026: "1", y2026_2h: "1" },
+      { material: "W/Mo/Ta", process: "Laser Welding", y2025: "2", y2026: "3 (2025+1)", y2026_2h: "3" },
+      { material: "W/Mo/Ta", process: "Auto Clean Line", y2025: "2", y2026: "2", y2026_2h: "2" },
+
+      // Silicon
+      { material: "Silicon", process: "3 Axis Milling", y2025: "22", y2026: "22", y2026_2h: "22" }
+    ];
+
+    let roadmapData = JSON.parse(localStorage.getItem('roadmap_data')) || initialData;
+
+    const tbody = document.getElementById('table-body');
+    const analyticsTbody = document.getElementById('analytics-tbody');
+    const authBtn = document.getElementById('auth-btn');
+    const authStatus = document.getElementById('auth-status');
+
+    // 分頁切換函式
+    window.switchTab = (tabId) => {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+      event.target.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+
+      if (tabId === 'analytics-tab') {
+        renderAnalytics();
+      }
+    };
+
+    function renderTable() {
+      tbody.innerHTML = '';
+      let currentMaterial = '';
+
+      roadmapData.forEach((row, index) => {
+        const tr = document.createElement('tr');
+
+        let materialCellHtml = '';
+        if (row.material !== currentMaterial) {
+          currentMaterial = row.material;
+          materialCellHtml = `<td class="material-header editable" ondblclick="editCell(${index}, 'material')">${row.material}</td>`;
+        } else {
+          materialCellHtml = `<td class="material-header editable" ondblclick="editCell(${index}, 'material')" style="color: transparent;">${row.material}</td>`;
+        }
+
+        tr.innerHTML = `
+          ${materialCellHtml}
+          <td class="editable" ondblclick="editCell(${index}, 'process')">${row.process || '-'}</td>
+          <td class="editable" ondblclick="editCell(${index}, 'y2025')">${row.y2025 || '-'}</td>
+          <td class="editable" ondblclick="editCell(${index}, 'y2026')">${row.y2026 || '-'}</td>
+          <td class="editable highlight-val" ondblclick="editCell(${index}, 'y2026_2h')">${row.y2026_2h || '-'}</td>
+          <td style="text-align: center;">
+            <button class="action-btn" onclick="deleteRow(${index})" title="刪除此行">🗑️</button>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
     }
-  }).then(canvas => {
-    const image = canvas.toDataURL("image/png", 1.0); // 以 100% 最高畫質匯出
-    const link = document.createElement('a');
-    link.href = image;
-    link.download = `Capacity_Roadmap_HD_${new Date().toISOString().slice(0,10)}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
 
-    exportBtn.innerText = "📸 匯出圖鑑表圖片 (PNG)";
-    exportBtn.disabled = false;
-  }).catch(err => {
-    alert("匯出圖片失敗：" + err);
-    exportBtn.innerText = "📸 匯出圖鑑表圖片 (PNG)";
-    exportBtn.disabled = false;
-  });
-};
+    // 機台增減動態分析渲染引擎
+    function renderAnalytics() {
+      analyticsTbody.innerHTML = '';
+      let exp2026Count = 0;
+      let exp20262hCount = 0;
 
-// 📸 2. 機台增減分析頁面：高畫質一鍵匯出圖片 (PNG)
-document.getElementById('export-image-btn').onclick = () => {
-  const exportArea = document.getElementById('analytics-export-area');
-  const exportBtn = document.getElementById('export-image-btn');
+      roadmapData.forEach(row => {
+        const isChanged2026 = row.y2026 && row.y2026 !== row.y2025;
+        const isChanged20262h = row.y2026_2h && row.y2026_2h !== row.y2026;
 
-  exportBtn.innerText = "⏳ 高畫質圖片生成中...";
-  exportBtn.disabled = true;
+        if (isChanged2026 || isChanged20262h || !row.y2025) {
+          if (isChanged2026) exp2026Count++;
+          if (isChanged20262h) exp20262hCount++;
 
-  html2canvas(exportArea, {
-    backgroundColor: '#1e293b',
-    scale: 3, // 升級為 3 倍超高解析度
-    useCORS: true,
-    logging: false,
-    windowWidth: exportArea.scrollWidth,
-    windowHeight: exportArea.scrollHeight,
-    onclone: (clonedDoc) => {
-      const clonedArea = clonedDoc.getElementById('analytics-export-area');
-      clonedArea.style.maxHeight = 'none';
-      clonedArea.style.overflow = 'visible';
+          let badgeHtml = '';
+          if (!row.y2025 && (row.y2026 || row.y2026_2h)) {
+            badgeHtml = `<span class="delta-badge delta-new">✨ 全新導入機台</span>`;
+          } else {
+            badgeHtml = `<span class="delta-badge delta-plus">📈 產能擴充/異動</span>`;
+          }
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="font-weight: 700; color: var(--accent);">${row.material}</td>
+            <td><strong>${row.process}</strong></td>
+            <td>${row.y2025 || '<span style="color:var(--text-muted);">無 (0)</span>'}</td>
+            <td style="color: ${isChanged2026 ? '#38bdf8' : 'inherit'}; font-weight: ${isChanged2026 ? '700' : 'normal'};">${row.y2026 || '-'}</td>
+            <td style="color: ${isChanged20262h ? '#34d399' : 'inherit'}; font-weight: ${isChanged20262h ? '700' : 'normal'};">${row.y2026_2h || '-'}</td>
+            <td>${badgeHtml}</td>
+          `;
+          analyticsTbody.appendChild(tr);
+        }
+      });
+
+      document.getElementById('stat-2026-exp').innerText = `${exp2026Count} 項機台擴增`;
+      document.getElementById('stat-20262h-exp').innerText = `${exp20262hCount} 項機台擴增`;
     }
-  }).then(canvas => {
-    const image = canvas.toDataURL("image/png", 1.0);
-    const link = document.createElement('a');
-    link.href = image;
-    link.download = `Capacity_Analytics_HD_${new Date().toISOString().slice(0,10)}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
 
-    exportBtn.innerText = "📸 匯出分析圖表圖片 (PNG)";
-    exportBtn.disabled = false;
-  }).catch(err => {
-    alert("匯出圖片失敗：" + err);
-    exportBtn.innerText = "📸 匯出分析圖表圖片 (PNG)";
-    exportBtn.disabled = false;
-  });
-};
+    // 📸 1. 圖鑑表頁面：一鍵匯出圖片 (PNG)
+    document.getElementById('export-roadmap-img-btn').onclick = () => {
+      const exportArea = document.getElementById('roadmap-export-area');
+      const exportBtn = document.getElementById('export-roadmap-img-btn');
+
+      exportBtn.innerText = "⏳ 圖片生成中...";
+      exportBtn.disabled = true;
+
+      html2canvas(exportArea, {
+        backgroundColor: '#1e293b',
+        scale: 2 // 高解析度渲染
+      }).then(canvas => {
+        const image = canvas.toDataURL("image/png");
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `Capacity_Roadmap_Table_${new Date().toISOString().slice(0,10)}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        exportBtn.innerText = "📸 匯出圖鑑表圖片 (PNG)";
+        exportBtn.disabled = false;
+      }).catch(err => {
+        alert("匯出圖片失敗：", err);
+        exportBtn.innerText = "📸 匯出圖鑑表圖片 (PNG)";
+        exportBtn.disabled = false;
+      });
+    };
+
+    // 📸 2. 機台增減分析頁面：一鍵匯出圖片 (PNG)
+    document.getElementById('export-image-btn').onclick = () => {
+      const exportArea = document.getElementById('analytics-export-area');
+      const exportBtn = document.getElementById('export-image-btn');
+
+      exportBtn.innerText = "⏳ 圖片生成中...";
+      exportBtn.disabled = true;
+
+      html2canvas(exportArea, {
+        backgroundColor: '#1e293b',
+        scale: 2 // 高解析度渲染
+      }).then(canvas => {
+        const image = canvas.toDataURL("image/png");
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `Capacity_Delta_Analytics_${new Date().toISOString().slice(0,10)}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        exportBtn.innerText = "📸 匯出分析圖表圖片 (PNG)";
+        exportBtn.disabled = false;
+      }).catch(err => {
+        alert("匯出圖片失敗：", err);
+        exportBtn.innerText = "📸 匯出分析圖表圖片 (PNG)";
+        exportBtn.disabled = false;
+      });
+    };
+
+    // 登入狀態監控
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        document.body.classList.remove("read-only");
+        authStatus.innerText = `已登入 (${user.email})`;
+        authBtn.innerText = "登出";
+        authBtn.classList.remove("btn-primary");
+        authBtn.classList.add("btn-danger");
+      } else {
+        document.body.classList.add("read-only");
+        authStatus.innerText = "狀態：唯讀模式";
+        authBtn.innerText = "管理員登入";
+        authBtn.classList.remove("btn-danger");
+        authBtn.classList.add("btn-primary");
+      }
+    });
+
+    authBtn.onclick = async () => {
+      if (auth.currentUser) {
+        await signOut(auth);
+      } else {
+        const email = prompt("請輸入管理者 Email：");
+        const password = prompt("請輸入密碼：");
+        if (email && password) {
+          try {
+            await signInWithEmailAndPassword(auth, email, password);
+          } catch (err) {
+            alert("登入失敗：帳號或密碼錯誤！");
+          }
+        }
+      }
+    };
+
+    window.editCell = (index, key) => {
+      if (!auth.currentUser) {
+        alert("權限不足：必須登入管理員帳號才能修改資料！");
+        return;
+      }
+
+      const fieldMap = {
+        material: 'Material (材料類別)',
+        process: 'Process / Machine (機台/工序)',
+        y2025: '2025 數據',
+        y2026: '2026 數據',
+        y2026_2h: '2026 2H 數據'
+      };
+
+      const currentVal = roadmapData[index][key] || '';
+      const newVal = prompt(`修改 ${fieldMap[key]}：`, currentVal);
+
+      if (newVal !== null) {
+        roadmapData[index][key] = newVal.trim();
+        saveAndRender();
+      }
+    };
+
+    window.deleteRow = (index) => {
+      if (!auth.currentUser) {
+        alert("權限不足：必須登入管理員帳號才能刪除資料！");
+        return;
+      }
+
+      if (confirm(`確定要刪除「${roadmapData[index].process}」這一列嗎？`)) {
+        roadmapData.splice(index, 1);
+        saveAndRender();
+      }
+    };
+
+    document.getElementById('add-row-btn').onclick = () => {
+      if (!auth.currentUser) {
+        alert("權限不足：必須登入管理員帳號才能新增資料！");
+        return;
+      }
+
+      const material = prompt("請輸入 Material 類別 (例如 Metal: AL/SST, Graphite 等)：", "Metal: AL/SST");
+      if (!material) return;
+      const process = prompt("請輸入 Process / Machine 名稱：", "New Machine");
+      if (!process) return;
+
+      roadmapData.push({
+        material: material.trim(),
+        process: process.trim(),
+        y2025: "0",
+        y2026: "0",
+        y2026_2h: "0"
+      });
+
+      saveAndRender();
+    };
+
+    function saveAndRender() {
+      localStorage.setItem('roadmap_data', JSON.stringify(roadmapData));
+      renderTable();
+    }
+
+    document.getElementById('export-json-btn').onclick = () => {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(roadmapData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `Capacity_Roadmap_Backup_${new Date().toISOString().slice(0,10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    };
+
+    const importBtn = document.getElementById('import-btn');
+    const importFileInput = document.getElementById('import-file-input');
+
+    importBtn.onclick = () => {
+      if (!auth.currentUser) {
+        alert("權限不足：必須登入管理員帳號才能匯入備份！");
+        return;
+      }
+      importFileInput.click();
+    };
+
+    importFileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const imported = JSON.parse(event.target.result);
+          if (Array.isArray(imported)) {
+            roadmapData = imported;
+            saveAndRender();
+            alert("資料成功匯入！");
+          } else {
+            alert("格式不符！請上傳正確的 Roadmap JSON 檔案。");
+          }
+        } catch (err) {
+          alert("無法讀取此 JSON 檔案！");
+        }
+        importFileInput.value = '';
+      };
+      reader.readAsText(file);
+    };
+
+    document.getElementById('reset-btn').onclick = () => {
+      if (!auth.currentUser) {
+        alert("權限不足：必須登入管理員帳號才能重置資料！");
+        return;
+      }
+
+      if (confirm("警告：這將會清除您所有的修改，恢復成預設數值！確定要重置嗎？")) {
+        roadmapData = [...initialData];
+        saveAndRender();
+      }
+    };
+
+    renderTable();
+  </script>
+</body>
+</html>
