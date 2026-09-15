@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Enterprise Capacity Roadmap & Machine Analytics</title>
+  <!-- 引入 html2canvas 程式庫以支援一鍵截圖匯出圖片 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     :root {
       --bg-color: #0b1329;
@@ -140,6 +142,8 @@
 
     .btn-primary { background-color: #0284c7; color: #fff; border: none; }
     .btn-primary:hover { background-color: #0369a1; color: #fff; }
+    .btn-success { background-color: #10b981; color: #fff; border: none; }
+    .btn-success:hover { background-color: #059669; color: #fff; }
     .btn-danger { background-color: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
     .btn-danger:hover { background-color: #dc2626; color: #fff; }
 
@@ -269,12 +273,13 @@
     <div id="roadmap-tab" class="tab-content active">
       <div class="toolbar" style="padding: 12px 16px 0 16px;">
         <button id="add-row-btn" class="btn btn-primary">➕ 新增資料列</button>
+        <button id="export-roadmap-img-btn" class="btn btn-success">📸 匯出圖鑑表圖片 (PNG)</button>
         <button id="export-json-btn" class="btn">💾 備份 JSON</button>
         <button id="import-btn" class="btn">📤 匯入 JSON 備份</button>
         <button id="reset-btn" class="btn btn-danger">🔄 重置預設資料</button>
         <input type="file" id="import-file-input" accept=".json" style="display: none;">
       </div>
-      <div style="padding: 12px 16px;">
+      <div id="roadmap-export-area" style="padding: 12px 16px;">
         <table>
           <thead>
             <tr>
@@ -294,32 +299,37 @@
 
     <!-- 頁面二：機台增減分析 (Analytics) -->
     <div id="analytics-tab" class="tab-content">
-      <div class="analytics-grid">
-        <div class="stat-card">
-          <div class="stat-card-title">2025 -> 2026 擴產項目</div>
-          <div id="stat-2026-exp" class="stat-value">0 項</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-title">2026 2H 新增擴產項目</div>
-          <div id="stat-20262h-exp" class="stat-value" style="color: #38bdf8;">0 項</div>
-        </div>
+      <div class="toolbar" style="padding: 12px 20px 0 20px; justify-content: flex-end;">
+        <button id="export-image-btn" class="btn btn-success">📸 匯出分析圖表圖片 (PNG)</button>
       </div>
-      <div style="padding: 0 20px 20px 20px;">
-        <h3 style="color: var(--accent); margin-top: 0;">🔍 機台擴產與異動明細分析清單</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Material</th>
-              <th>Process / Machine</th>
-              <th>2025 基準</th>
-              <th>2026 變更內容</th>
-              <th>2026 2H 變更內容</th>
-              <th>異動狀態分類</th>
-            </tr>
-          </thead>
-          <tbody id="analytics-tbody">
-          </tbody>
-        </table>
+      <div id="analytics-export-area">
+        <div class="analytics-grid">
+          <div class="stat-card">
+            <div class="stat-card-title">2025 -> 2026 擴產項目</div>
+            <div id="stat-2026-exp" class="stat-card-value">0 項</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-title">2026 2H 新增擴產項目</div>
+            <div id="stat-20262h-exp" class="stat-card-value" style="color: #38bdf8;">0 項</div>
+          </div>
+        </div>
+        <div style="padding: 0 20px 20px 20px;">
+          <h3 style="color: var(--accent); margin-top: 0;">🔍 機台擴產與異動明細分析清單</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Process / Machine</th>
+                <th>2025 基準</th>
+                <th>2026 變更內容</th>
+                <th>2026 2H 變更內容</th>
+                <th>異動狀態分類</th>
+              </tr>
+            </thead>
+            <tbody id="analytics-tbody">
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -482,6 +492,64 @@
       document.getElementById('stat-2026-exp').innerText = `${exp2026Count} 項機台擴增`;
       document.getElementById('stat-20262h-exp').innerText = `${exp20262hCount} 項機台擴增`;
     }
+
+    // 📸 1. 圖鑑表頁面：一鍵匯出圖片 (PNG)
+    document.getElementById('export-roadmap-img-btn').onclick = () => {
+      const exportArea = document.getElementById('roadmap-export-area');
+      const exportBtn = document.getElementById('export-roadmap-img-btn');
+
+      exportBtn.innerText = "⏳ 圖片生成中...";
+      exportBtn.disabled = true;
+
+      html2canvas(exportArea, {
+        backgroundColor: '#1e293b',
+        scale: 2 // 高解析度渲染
+      }).then(canvas => {
+        const image = canvas.toDataURL("image/png");
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `Capacity_Roadmap_Table_${new Date().toISOString().slice(0,10)}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        exportBtn.innerText = "📸 匯出圖鑑表圖片 (PNG)";
+        exportBtn.disabled = false;
+      }).catch(err => {
+        alert("匯出圖片失敗：", err);
+        exportBtn.innerText = "📸 匯出圖鑑表圖片 (PNG)";
+        exportBtn.disabled = false;
+      });
+    };
+
+    // 📸 2. 機台增減分析頁面：一鍵匯出圖片 (PNG)
+    document.getElementById('export-image-btn').onclick = () => {
+      const exportArea = document.getElementById('analytics-export-area');
+      const exportBtn = document.getElementById('export-image-btn');
+
+      exportBtn.innerText = "⏳ 圖片生成中...";
+      exportBtn.disabled = true;
+
+      html2canvas(exportArea, {
+        backgroundColor: '#1e293b',
+        scale: 2 // 高解析度渲染
+      }).then(canvas => {
+        const image = canvas.toDataURL("image/png");
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `Capacity_Delta_Analytics_${new Date().toISOString().slice(0,10)}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        exportBtn.innerText = "📸 匯出分析圖表圖片 (PNG)";
+        exportBtn.disabled = false;
+      }).catch(err => {
+        alert("匯出圖片失敗：", err);
+        exportBtn.innerText = "📸 匯出分析圖表圖片 (PNG)";
+        exportBtn.disabled = false;
+      });
+    };
 
     // 登入狀態監控
     onAuthStateChanged(auth, (user) => {
