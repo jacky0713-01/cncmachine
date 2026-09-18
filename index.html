@@ -265,8 +265,8 @@
 
     <!-- 主分頁導覽 -->
     <div class="nav-tabs">
-      <button class="tab-btn active" onclick="switchTab('roadmap-tab')">📊 Capacity Roadmap 圖鑑表</button>
-      <button class="tab-btn" onclick="switchTab('analytics-tab')">📈 機台增減動態分析</button>
+      <button class="tab-btn active" onclick="switchTab('roadmap-tab', event)">📊 Capacity Roadmap 圖鑑表</button>
+      <button class="tab-btn" onclick="switchTab('analytics-tab', event)">📈 機台增減動態分析</button>
     </div>
 
     <!-- 頁面一：Roadmap 圖鑑表 -->
@@ -337,18 +337,22 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+    // ✅ 已更新為你的全新金鑰 cnclist-8735e
     const firebaseConfig = {
-      apiKey: "AIzaSyBh4wNEwXzGOxKOJqj3Akg7gj1WxFHzmNQ",
-      authDomain: "throw-a-coin.firebaseapp.com",
-      projectId: "throw-a-coin",
-      storageBucket: "throw-a-coin.firebasestorage.app",
-      messagingSenderId: "79225369395",
-      appId: "1:79225369395:web:ac6b6dadb1154159c40446"
+      apiKey: "AIzaSyAe38sw2PpDRgseHnz5654ZHwBfyDkgJEM",
+      authDomain: "cnclist-8735e.firebaseapp.com",
+      projectId: "cnclist-8735e",
+      storageBucket: "cnclist-8735e.firebasestorage.app",
+      messagingSenderId: "347811725447",
+      appId: "1:347811725447:web:c7acb085a649641cfeb822",
+      measurementId: "G-1T5QV75N13"
     };
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    const db = getFirestore(app);
 
     const initialData = [
       // Metal: AL/SST
@@ -405,19 +409,42 @@
       { material: "Silicon", process: "3 Axis Milling", y2025: "22", y2026: "22", y2026_2h: "22" }
     ];
 
-    let roadmapData = JSON.parse(localStorage.getItem('roadmap_data')) || initialData;
+    let roadmapData = initialData;
 
     const tbody = document.getElementById('table-body');
     const analyticsTbody = document.getElementById('analytics-tbody');
     const authBtn = document.getElementById('auth-btn');
     const authStatus = document.getElementById('auth-status');
 
+    // 📡 🔥 雲端實時監聽：任何人在 Firestore 變更資料，頁面都會自動更新
+    const docRef = doc(db, "capacity_roadmap", "main_data");
+    onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        roadmapData = docSnap.data().list || [];
+        renderTable();
+        renderAnalytics();
+      } else {
+        // 如果雲端尚無資料，初始化寫入預設資料
+        saveToFirestore(initialData);
+      }
+    });
+
+    // 💾 儲存資料至 Firestore 雲端
+    async function saveToFirestore(data) {
+      try {
+        await setDoc(docRef, { list: data });
+      } catch (e) {
+        console.error("雲端同步失敗: ", e);
+        alert("資料儲存至雲端失敗，請確認資料庫權限或網路狀況！");
+      }
+    }
+
     // 分頁切換函式
-    window.switchTab = (tabId) => {
+    window.switchTab = (tabId, e) => {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-      event.target.classList.add('active');
+      e.target.classList.add('active');
       document.getElementById(tabId).classList.add('active');
 
       if (tabId === 'analytics-tab') {
@@ -503,7 +530,7 @@
 
       html2canvas(exportArea, {
         backgroundColor: '#1e293b',
-        scale: 2 // 高解析度渲染
+        scale: 2
       }).then(canvas => {
         const image = canvas.toDataURL("image/png");
         const link = document.createElement('a');
@@ -532,7 +559,7 @@
 
       html2canvas(exportArea, {
         backgroundColor: '#1e293b',
-        scale: 2 // 高解析度渲染
+        scale: 2
       }).then(canvas => {
         const image = canvas.toDataURL("image/png");
         const link = document.createElement('a');
@@ -603,7 +630,7 @@
 
       if (newVal !== null) {
         roadmapData[index][key] = newVal.trim();
-        saveAndRender();
+        saveToFirestore(roadmapData);
       }
     };
 
@@ -615,7 +642,7 @@
 
       if (confirm(`確定要刪除「${roadmapData[index].process}」這一列嗎？`)) {
         roadmapData.splice(index, 1);
-        saveAndRender();
+        saveToFirestore(roadmapData);
       }
     };
 
@@ -638,13 +665,8 @@
         y2026_2h: "0"
       });
 
-      saveAndRender();
+      saveToFirestore(roadmapData);
     };
-
-    function saveAndRender() {
-      localStorage.setItem('roadmap_data', JSON.stringify(roadmapData));
-      renderTable();
-    }
 
     document.getElementById('export-json-btn').onclick = () => {
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(roadmapData, null, 2));
@@ -677,8 +699,8 @@
           const imported = JSON.parse(event.target.result);
           if (Array.isArray(imported)) {
             roadmapData = imported;
-            saveAndRender();
-            alert("資料成功匯入！");
+            saveToFirestore(roadmapData);
+            alert("資料成功匯入雲端！");
           } else {
             alert("格式不符！請上傳正確的 Roadmap JSON 檔案。");
           }
@@ -696,13 +718,11 @@
         return;
       }
 
-      if (confirm("警告：這將會清除您所有的修改，恢復成預設數值！確定要重置嗎？")) {
+      if (confirm("警告：這將會清除雲端上的所有修改，恢復成預設數值！確定要重置嗎？")) {
         roadmapData = [...initialData];
-        saveAndRender();
+        saveToFirestore(roadmapData);
       }
     };
-
-    renderTable();
   </script>
 </body>
 </html>
