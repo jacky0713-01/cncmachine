@@ -180,6 +180,14 @@
       position: sticky;
       top: 0;
       z-index: 10;
+      user-select: none;
+    }
+
+    body:not(.read-only) th.draggable-col {
+      cursor: grab;
+    }
+    body:not(.read-only) th.draggable-col:active {
+      cursor: grabbing;
     }
 
     td {
@@ -192,6 +200,28 @@
 
     tr:hover td {
       background-color: rgba(255, 255, 255, 0.03);
+    }
+
+    .drag-handle {
+      cursor: grab;
+      color: var(--text-muted);
+      font-size: 1rem;
+      text-align: center;
+      width: 30px;
+      user-select: none;
+    }
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+    body.read-only .drag-handle {
+      display: none;
+    }
+
+    .drag-over-row {
+      border-top: 2px solid var(--accent) !important;
+    }
+    .drag-over-col {
+      border-left: 2px solid var(--accent) !important;
     }
 
     .material-header {
@@ -324,22 +354,19 @@
     <div id="roadmap-tab" class="tab-content active">
       <div class="toolbar" style="padding: 12px 16px 0 16px;">
         <button id="add-row-btn" class="btn btn-primary">➕ 新增資料列</button>
-        <button id="export-roadmap-img-btn" class="btn btn-success">📸 匯出圖鑑表圖片 (PNG)</button>
+        <button id="import-csv-btn" class="btn btn-success">📥 匯入 CSV</button>
         <button id="export-json-btn" class="btn">💾 備份 JSON</button>
         <button id="import-btn" class="btn">📤 匯入 JSON 備份</button>
         <button id="reset-btn" class="btn btn-danger">🔄 重置預設資料</button>
         <input type="file" id="import-file-input" accept=".json" style="display: none;">
+        <input type="file" id="import-csv-input" accept=".csv" style="display: none;">
       </div>
       <div id="roadmap-export-area" style="padding: 12px 16px;">
-        <table>
+        <table id="main-roadmap-table">
           <thead>
-            <tr>
-              <th style="width: 15%;">Material</th>
-              <th style="width: 25%;">Process / Machine</th>
-              <th style="width: 15%;">2025</th>
-              <th style="width: 20%;">2026</th>
-              <th style="width: 20%;">2026 2H</th>
-              <th style="width: 5%; text-align: center;">操作</th>
+            <tr id="table-header-row">
+              <th style="width: 35px;" class="no-drag"></th>
+              <!-- 動態渲染欄位頭部 -->
             </tr>
           </thead>
           <tbody id="table-body">
@@ -417,6 +444,16 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
+    // 預設欄位定義
+    let columns = [
+      { key: 'material', label: 'Material', width: '15%' },
+      { key: 'process', label: 'Process / Machine', width: '25%' },
+      { key: 'y2025', label: '2025', width: '15%' },
+      { key: 'y2026', label: '2026', width: '20%' },
+      { key: 'y2026_2h', label: '2026 2H', width: '20%' },
+      { key: 'action', label: '操作', width: '5%', noDrag: true }
+    ];
+
     const initialData = [
       { material: "Metal: AL/SST", process: "3 Axis Milling", y2025: "38", y2026: "38", y2026_2h: "38" },
       { material: "Metal: AL/SST", process: "Auto 3 Axis Milling", y2025: "1", y2026: "1", y2026_2h: "1" },
@@ -468,6 +505,7 @@
     let roadmapData = initialData;
 
     const tbody = document.getElementById('table-body');
+    const headerRow = document.getElementById('table-header-row');
     const analyticsTbody = document.getElementById('analytics-tbody');
     const authBtn = document.getElementById('auth-btn');
     const authStatus = document.getElementById('auth-status');
@@ -477,12 +515,17 @@
     const docRef = doc(db, "capacity_roadmap", "main_data");
     onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
-        roadmapData = docSnap.data().list || [];
+        const data = docSnap.data();
+        roadmapData = data.list || [];
+        if (data.columns) {
+          columns = data.columns;
+        }
+        renderTableHeader();
         renderTable();
         renderAnalytics();
       } else {
-        // 資料庫尚未建立資料時，渲染預設本地資料（不自動嘗試寫入雲端）
         roadmapData = initialData;
+        renderTableHeader();
         renderTable();
         renderAnalytics();
       }
@@ -491,13 +534,13 @@
     });
 
     // 💾 儲存資料至 Firestore 雲端
-    async function saveToFirestore(data) {
+    async function saveToFirestore(data, cols = columns) {
       if (!auth.currentUser) {
         alert("請先進行管理員登入，才能將資料同步至雲端！");
         return;
       }
       try {
-        await setDoc(docRef, { list: data });
+        await setDoc(docRef, { list: data, columns: cols });
       } catch (e) {
         console.error("雲端同步失敗詳細錯誤: ", e);
         alert(`資料儲存至雲端失敗：${e.message}\n請確認 Firebase Rules 權限設定！`);
@@ -517,40 +560,131 @@
       }
     };
 
+    // 渲染表頭（支援欄位拖曳）
+    function renderTableHeader() {
+      headerRow.innerHTML = '<th style="width: 35px;" class="no-drag"></th>';
+      
+      columns.forEach((col, index) => {
+        const th = document.createElement('th');
+        th.style.width = col.width || 'auto';
+        th.innerText = col.label;
+
+        if (!col.noDrag) {
+          th.classList.add('draggable-col');
+          if (auth.currentUser) {
+            th.draggable = true;
+            th.addEventListener('dragstart', (e) => handleColDragStart(e, index));
+            th.addEventListener('dragover', handleColDragOver);
+            th.addEventListener('drop', (e) => handleColDrop(e, index));
+            th.addEventListener('dragleave', handleColDragLeave);
+          }
+        } else {
+          th.style.textAlign = 'center';
+        }
+        headerRow.appendChild(th);
+      });
+    }
+
+    let draggedColIndex = null;
+    function handleColDragStart(e, index) {
+      draggedColIndex = index;
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    function handleColDragOver(e) {
+      if (e.preventDefault) e.preventDefault();
+      e.currentTarget.classList.add('drag-over-col');
+      return false;
+    }
+    function handleColDragLeave(e) {
+      e.currentTarget.classList.remove('drag-over-col');
+    }
+    function handleColDrop(e, targetIndex) {
+      e.stopPropagation();
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over-col');
+
+      if (draggedColIndex !== null && draggedColIndex !== targetIndex) {
+        const movedCol = columns.splice(draggedColIndex, 1)[0];
+        columns.splice(targetIndex, 0, movedCol);
+        renderTableHeader();
+        renderTable();
+        saveToFirestore(roadmapData, columns);
+      }
+      draggedColIndex = null;
+      return false;
+    }
+
+    // 渲染表格（支援列位拖曳）
     function renderTable() {
       tbody.innerHTML = '';
-      roadmapData.sort((a, b) => a.material.localeCompare(b.material));
-
-      const materialCounts = {};
-      roadmapData.forEach(item => {
-        materialCounts[item.material] = (materialCounts[item.material] || 0) + 1;
-      });
-
-      const renderedMaterials = new Set();
 
       roadmapData.forEach((row, index) => {
         const tr = document.createElement('tr');
 
-        let materialTd = '';
-        if (!renderedMaterials.has(row.material)) {
-          renderedMaterials.add(row.material);
-          const count = materialCounts[row.material];
-          materialTd = `<td class="material-header editable" rowspan="${count}" ondblclick="editMaterialCategory('${row.material}')">${row.material}</td>`;
+        if (auth.currentUser) {
+          tr.draggable = true;
+          tr.addEventListener('dragstart', (e) => handleRowDragStart(e, index));
+          tr.addEventListener('dragover', handleRowDragOver);
+          tr.addEventListener('drop', (e) => handleRowDrop(e, index));
+          tr.addEventListener('dragleave', handleRowDragLeave);
         }
 
-        tr.innerHTML = `
-          ${materialTd}
-          <td class="editable" ondblclick="editCell(${index}, 'process')">${row.process || '-'}</td>
-          <td class="editable" ondblclick="editCell(${index}, 'y2025')">${row.y2025 || '-'}</td>
-          <td class="editable" ondblclick="editCell(${index}, 'y2026')">${row.y2026 || '-'}</td>
-          <td class="editable" ondblclick="editCell(${index}, 'y2026_2h')">${row.y2026_2h || '-'}</td>
-          <td style="text-align: center;">
-            <button class="action-btn" onclick="deleteRow(${index})" title="刪除此行">🗑️</button>
-          </td>
-        `;
+        // 拖曳 Handle 欄位
+        const handleTd = document.createElement('td');
+        handleTd.className = 'drag-handle';
+        handleTd.innerHTML = '⋮⋮';
+        tr.appendChild(handleTd);
+
+        // 動態根據欄位順序渲染內容
+        columns.forEach(col => {
+          const td = document.createElement('td');
+          if (col.key === 'action') {
+            td.style.textAlign = 'center';
+            td.innerHTML = `<button class="action-btn" onclick="deleteRow(${index})" title="刪除此行">🗑️</button>`;
+          } else if (col.key === 'material') {
+            td.className = 'editable';
+            td.style.fontWeight = 'bold';
+            td.style.color = 'var(--accent)';
+            td.innerText = row.material || '-';
+            td.ondblclick = () => editMaterialCategory(index);
+          } else {
+            td.className = 'editable';
+            td.innerText = row[col.key] || '-';
+            td.ondblclick = () => editCell(index, col.key);
+          }
+          tr.appendChild(td);
+        });
 
         tbody.appendChild(tr);
       });
+    }
+
+    let draggedRowIndex = null;
+    function handleRowDragStart(e, index) {
+      draggedRowIndex = index;
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    function handleRowDragOver(e) {
+      if (e.preventDefault) e.preventDefault();
+      e.currentTarget.classList.add('drag-over-row');
+      return false;
+    }
+    function handleRowDragLeave(e) {
+      e.currentTarget.classList.remove('drag-over-row');
+    }
+    function handleRowDrop(e, targetIndex) {
+      e.stopPropagation();
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over-row');
+
+      if (draggedRowIndex !== null && draggedRowIndex !== targetIndex) {
+        const movedRow = roadmapData.splice(draggedRowIndex, 1)[0];
+        roadmapData.splice(targetIndex, 0, movedRow);
+        renderTable();
+        saveToFirestore(roadmapData, columns);
+      }
+      draggedRowIndex = null;
+      return false;
     }
 
     function renderAnalytics() {
@@ -575,8 +709,8 @@
 
           const tr = document.createElement('tr');
           tr.innerHTML = `
-            <td style="font-weight: 700; color: var(--accent);">${row.material}</td>
-            <td><strong>${row.process}</strong></td>
+            <td style="font-weight: 700; color: var(--accent);">${row.material || ''}</td>
+            <td><strong>${row.process || ''}</strong></td>
             <td>${row.y2025 || '<span style="color:var(--text-muted);">無 (0)</span>'}</td>
             <td style="color: ${isChanged2026 ? '#38bdf8' : 'inherit'}; font-weight: ${isChanged2026 ? '700' : 'normal'};">${row.y2026 || '-'}</td>
             <td style="color: ${isChanged20262h ? '#34d399' : 'inherit'}; font-weight: ${isChanged20262h ? '700' : 'normal'};">${row.y2026_2h || '-'}</td>
@@ -590,32 +724,7 @@
       document.getElementById('stat-20262h-exp').innerText = `${exp20262hCount} 項機台擴增`;
     }
 
-    // 圖片匯出
-    document.getElementById('export-roadmap-img-btn').onclick = () => {
-      const exportArea = document.getElementById('roadmap-export-area');
-      const exportBtn = document.getElementById('export-roadmap-img-btn');
-
-      exportBtn.innerText = "⏳ 圖片生成中...";
-      exportBtn.disabled = true;
-
-      html2canvas(exportArea, { backgroundColor: '#1e293b', scale: 2 }).then(canvas => {
-        const image = canvas.toDataURL("image/png");
-        const link = document.createElement('a');
-        link.href = image;
-        link.download = `Capacity_Roadmap_Table_${new Date().toISOString().slice(0,10)}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        exportBtn.innerText = "📸 匯出圖鑑表圖片 (PNG)";
-        exportBtn.disabled = false;
-      }).catch(err => {
-        alert("匯出圖片失敗：" + err);
-        exportBtn.innerText = "📸 匯出圖鑑表圖片 (PNG)";
-        exportBtn.disabled = false;
-      });
-    };
-
+    // 分析圖表圖片匯出
     document.getElementById('export-image-btn').onclick = () => {
       const exportArea = document.getElementById('analytics-export-area');
       const exportBtn = document.getElementById('export-image-btn');
@@ -656,6 +765,8 @@
         authBtn.classList.remove("btn-danger");
         authBtn.classList.add("btn-primary");
       }
+      renderTableHeader();
+      renderTable();
     });
 
     authBtn.onclick = async () => {
@@ -694,20 +805,17 @@
       if (e.key === 'Enter') doLogin();
     });
 
-    window.editMaterialCategory = (oldMaterialName) => {
+    window.editMaterialCategory = (index) => {
       if (!auth.currentUser) {
         alert("權限不足：必須登入管理員帳號才能修改資料！");
         return;
       }
 
-      const newMaterialName = prompt("請輸入新的 Material 類別名稱：", oldMaterialName);
-      if (newMaterialName && newMaterialName.trim() !== "" && newMaterialName !== oldMaterialName) {
-        roadmapData.forEach(row => {
-          if (row.material === oldMaterialName) {
-            row.material = newMaterialName.trim();
-          }
-        });
-        saveToFirestore(roadmapData);
+      const oldVal = roadmapData[index].material || '';
+      const newVal = prompt("請輸入新的 Material 類別名稱：", oldVal);
+      if (newVal !== null && newVal.trim() !== "") {
+        roadmapData[index].material = newVal.trim();
+        saveToFirestore(roadmapData, columns);
       }
     };
 
@@ -717,19 +825,15 @@
         return;
       }
 
-      const fieldMap = {
-        process: 'Process / Machine (機台/工序)',
-        y2025: '2025 數據',
-        y2026: '2026 數據',
-        y2026_2h: '2026 2H 數據'
-      };
+      const colObj = columns.find(c => c.key === key);
+      const label = colObj ? colObj.label : key;
 
       const currentVal = roadmapData[index][key] || '';
-      const newVal = prompt(`修改 ${fieldMap[key]}：`, currentVal);
+      const newVal = prompt(`修改 ${label}：`, currentVal);
 
       if (newVal !== null) {
         roadmapData[index][key] = newVal.trim();
-        saveToFirestore(roadmapData);
+        saveToFirestore(roadmapData, columns);
       }
     };
 
@@ -739,9 +843,9 @@
         return;
       }
 
-      if (confirm(`確定要刪除「${roadmapData[index].process}」這一列嗎？`)) {
+      if (confirm(`確定要刪除「${roadmapData[index].process || '此筆資料'}」這一列嗎？`)) {
         roadmapData.splice(index, 1);
-        saveToFirestore(roadmapData);
+        saveToFirestore(roadmapData, columns);
       }
     };
 
@@ -764,11 +868,13 @@
         y2026_2h: "0"
       });
 
-      saveToFirestore(roadmapData);
+      saveToFirestore(roadmapData, columns);
     };
 
+    // JSON 備份匯出與匯入
     document.getElementById('export-json-btn').onclick = () => {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(roadmapData, null, 2));
+      const exportObj = { columns, list: roadmapData };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute("href", dataStr);
       downloadAnchor.setAttribute("download", `Capacity_Roadmap_Backup_${new Date().toISOString().slice(0,10)}.json`);
@@ -798,11 +904,15 @@
           const imported = JSON.parse(event.target.result);
           if (Array.isArray(imported)) {
             roadmapData = imported;
-            saveToFirestore(roadmapData);
-            alert("資料成功匯入雲端！");
+          } else if (imported.list) {
+            roadmapData = imported.list;
+            if (imported.columns) columns = imported.columns;
           } else {
             alert("格式不符！請上傳正確的 Roadmap JSON 檔案。");
+            return;
           }
+          saveToFirestore(roadmapData, columns);
+          alert("JSON 資料成功匯入雲端！");
         } catch (err) {
           alert("無法讀取此 JSON 檔案！");
         }
@@ -810,6 +920,102 @@
       };
       reader.readAsText(file);
     };
+
+    // CSV 匯入功能
+    const importCsvBtn = document.getElementById('import-csv-btn');
+    const importCsvInput = document.getElementById('import-csv-input');
+
+    importCsvBtn.onclick = () => {
+      if (!auth.currentUser) {
+        alert("權限不足：必須登入管理員帳號才能匯入 CSV！");
+        return;
+      }
+      importCsvInput.click();
+    };
+
+    importCsvInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const text = event.target.result;
+          const rows = parseCSV(text);
+          if (rows.length < 2) {
+            alert("CSV 內容無有效數據！");
+            return;
+          }
+
+          // 解析 CSV 表頭
+          const headers = rows[0].map(h => h.trim().toLowerCase());
+          const matIdx = headers.findIndex(h => h.includes('material'));
+          const procIdx = headers.findIndex(h => h.includes('process') || h.includes('machine'));
+          const y2025Idx = headers.findIndex(h => h.includes('2025'));
+          const y2026Idx = headers.findIndex(h => h.includes('2026') && !h.includes('2h'));
+          const y20262hIdx = headers.findIndex(h => h.includes('2026 2h') || h.includes('2026_2h') || h.includes('2h'));
+
+          const parsedList = [];
+          for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.length === 0 || (row.length === 1 && !row[0].trim())) continue;
+
+            parsedList.push({
+              material: matIdx !== -1 && row[matIdx] ? row[matIdx].trim() : '',
+              process: procIdx !== -1 && row[procIdx] ? row[procIdx].trim() : '',
+              y2025: y2025Idx !== -1 && row[y2025Idx] ? row[y2025Idx].trim() : '',
+              y2026: y2026Idx !== -1 && row[y2026Idx] ? row[y2026Idx].trim() : '',
+              y2026_2h: y20262hIdx !== -1 && row[y20262hIdx] ? row[y20262hIdx].trim() : ''
+            });
+          }
+
+          if (parsedList.length > 0) {
+            roadmapData = parsedList;
+            saveToFirestore(roadmapData, columns);
+            alert(`成功匯入 ${parsedList.length} 筆 CSV 資料！`);
+          } else {
+            alert("未能成功解析出資料，請確認 CSV 格式。");
+          }
+        } catch (err) {
+          alert("解析 CSV 檔案時出錯：" + err.message);
+        }
+        importCsvInput.value = '';
+      };
+      reader.readAsText(file);
+    };
+
+    // 標準 CSV 解析函式 (支援雙引號與換行)
+    function parseCSV(text) {
+      let p = '', c = '', r = [];
+      let q = false;
+      let row = [''];
+      for (let i = 0; i < text.length; i++) {
+        c = text[i];
+        p = text[i - 1];
+        if (c === '"') {
+          if (q && text[i + 1] === '"') {
+            row[row.length - 1] += '"';
+            i++;
+          } else {
+            q = !q;
+          }
+        } else if (c === ',' && !q) {
+          row.push('');
+        } else if ((c === '\r' || c === '\n') && !q) {
+          if (c === '\r' && text[i + 1] === '\n') {
+            i++;
+          }
+          r.push(row);
+          row = [''];
+        } else {
+          row[row.length - 1] += c;
+        }
+      }
+      if (row.length > 1 || row[0] !== '') {
+        r.push(row);
+      }
+      return r;
+    }
 
     document.getElementById('reset-btn').onclick = () => {
       if (!auth.currentUser) {
@@ -819,7 +1025,15 @@
 
       if (confirm("警告：這將會清除雲端上的所有修改，恢復成預設數值！確定要重置嗎？")) {
         roadmapData = [...initialData];
-        saveToFirestore(roadmapData);
+        columns = [
+          { key: 'material', label: 'Material', width: '15%' },
+          { key: 'process', label: 'Process / Machine', width: '25%' },
+          { key: 'y2025', label: '2025', width: '15%' },
+          { key: 'y2026', label: '2026', width: '20%' },
+          { key: 'y2026_2h', label: '2026 2H', width: '20%' },
+          { key: 'action', label: '操作', width: '5%', noDrag: true }
+        ];
+        saveToFirestore(roadmapData, columns);
       }
     };
   </script>
