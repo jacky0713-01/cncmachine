@@ -314,7 +314,7 @@
       </div>
     </header>
 
-    <!-- 主分頁導覽 -->
+    <!-- 分頁導覽 -->
     <div class="nav-tabs">
       <button class="tab-btn active" onclick="switchTab('roadmap-tab', event)">📊 Capacity Roadmap 圖鑑表</button>
       <button class="tab-btn" onclick="switchTab('analytics-tab', event)">📈 機台增減動態分析</button>
@@ -418,7 +418,6 @@
     const db = getFirestore(app);
 
     const initialData = [
-      // Metal: AL/SST
       { material: "Metal: AL/SST", process: "3 Axis Milling", y2025: "38", y2026: "38", y2026_2h: "38" },
       { material: "Metal: AL/SST", process: "Auto 3 Axis Milling", y2025: "1", y2026: "1", y2026_2h: "1" },
       { material: "Metal: AL/SST", process: "Turning-Milling", y2025: "10", y2026: "10", y2026_2h: "10" },
@@ -438,8 +437,6 @@
       { material: "Metal: AL/SST", process: "Clean Line", y2025: "1", y2026: "1", y2026_2h: "" },
       { material: "Metal: AL/SST", process: "Auto ENP(Cylinder)", y2025: "", y2026: "1 (2025+1)", y2026_2h: "1" },
       { material: "Metal: AL/SST", process: "Vacuum Brazing", y2025: "", y2026: "1 (2025+1)", y2026_2h: "1" },
-
-      // Graphite
       { material: "Graphite", process: "3 Axis Milling", y2025: "21", y2026: "21", y2026_2h: "21" },
       { material: "Graphite", process: "NJ: 3 Axis Milling", y2025: "10", y2026: "10", y2026_2h: "10" },
       { material: "Graphite", process: "Turning-Milling", y2025: "2", y2026: "2", y2026_2h: "2" },
@@ -451,8 +448,6 @@
       { material: "Graphite", process: "Auto Clean Line", y2025: "1", y2026: "1", y2026_2h: "1" },
       { material: "Graphite", process: "Lathe", y2025: "", y2026: "", y2026_2h: "1 (2026 1H +1)" },
       { material: "Graphite", process: "Turning-Milling", y2025: "", y2026: "", y2026_2h: "1 (2026 1H +1)" },
-
-      // W/Mo/Ta
       { material: "W/Mo/Ta", process: "3 Axis Milling", y2025: "45", y2026: "47 (2025+2)", y2026_2h: "47" },
       { material: "W/Mo/Ta", process: "JP: 3 Axis Milling", y2025: "", y2026: "", y2026_2h: "7 (2026 1H +7)" },
       { material: "W/Mo/Ta", process: "Auto 3 Axis Milling", y2025: "12", y2026: "12", y2026_2h: "16 (2026 1H +4)" },
@@ -467,8 +462,6 @@
       { material: "W/Mo/Ta", process: "Annealing", y2025: "1", y2026: "1", y2026_2h: "1" },
       { material: "W/Mo/Ta", process: "Laser Welding", y2025: "2", y2026: "3 (2025+1)", y2026_2h: "3" },
       { material: "W/Mo/Ta", process: "Auto Clean Line", y2025: "2", y2026: "2", y2026_2h: "2" },
-
-      // Silicon
       { material: "Silicon", process: "3 Axis Milling", y2025: "22", y2026: "22", y2026_2h: "22" }
     ];
 
@@ -488,21 +481,30 @@
         renderTable();
         renderAnalytics();
       } else {
-        saveToFirestore(initialData);
+        // 資料庫尚未建立資料時，渲染預設本地資料（不自動嘗試寫入雲端）
+        roadmapData = initialData;
+        renderTable();
+        renderAnalytics();
       }
+    }, (error) => {
+      console.warn("Firestore 監聽通知：", error.message);
     });
 
     // 💾 儲存資料至 Firestore 雲端
     async function saveToFirestore(data) {
+      if (!auth.currentUser) {
+        alert("請先進行管理員登入，才能將資料同步至雲端！");
+        return;
+      }
       try {
         await setDoc(docRef, { list: data });
       } catch (e) {
-        console.error("雲端同步失敗: ", e);
-        alert("資料儲存至雲端失敗，請確認資料庫權限或網路狀況！");
+        console.error("雲端同步失敗詳細錯誤: ", e);
+        alert(`資料儲存至雲端失敗：${e.message}\n請確認 Firebase Rules 權限設定！`);
       }
     }
 
-    // 分頁切換函式
+    // 分頁切換
     window.switchTab = (tabId, e) => {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -515,14 +517,10 @@
       }
     };
 
-    // 💡 優化 1: 使用 rowspan 進行跨行合併，解決隱藏格造成的對齊問題
     function renderTable() {
       tbody.innerHTML = '';
-
-      // 確保同類別聚在一起
       roadmapData.sort((a, b) => a.material.localeCompare(b.material));
 
-      // 計算各個 Material 的出現次數 (rowspan)
       const materialCounts = {};
       roadmapData.forEach(item => {
         materialCounts[item.material] = (materialCounts[item.material] || 0) + 1;
@@ -592,7 +590,7 @@
       document.getElementById('stat-20262h-exp').innerText = `${exp20262hCount} 項機台擴增`;
     }
 
-    // 📸 1. 圖鑑表頁面：一鍵匯出圖片 (PNG)
+    // 圖片匯出
     document.getElementById('export-roadmap-img-btn').onclick = () => {
       const exportArea = document.getElementById('roadmap-export-area');
       const exportBtn = document.getElementById('export-roadmap-img-btn');
@@ -600,10 +598,7 @@
       exportBtn.innerText = "⏳ 圖片生成中...";
       exportBtn.disabled = true;
 
-      html2canvas(exportArea, {
-        backgroundColor: '#1e293b',
-        scale: 2
-      }).then(canvas => {
+      html2canvas(exportArea, { backgroundColor: '#1e293b', scale: 2 }).then(canvas => {
         const image = canvas.toDataURL("image/png");
         const link = document.createElement('a');
         link.href = image;
@@ -615,13 +610,12 @@
         exportBtn.innerText = "📸 匯出圖鑑表圖片 (PNG)";
         exportBtn.disabled = false;
       }).catch(err => {
-        alert("匯出圖片失敗：", err);
+        alert("匯出圖片失敗：" + err);
         exportBtn.innerText = "📸 匯出圖鑑表圖片 (PNG)";
         exportBtn.disabled = false;
       });
     };
 
-    // 📸 2. 機台增減分析頁面：一鍵匯出圖片 (PNG)
     document.getElementById('export-image-btn').onclick = () => {
       const exportArea = document.getElementById('analytics-export-area');
       const exportBtn = document.getElementById('export-image-btn');
@@ -629,10 +623,7 @@
       exportBtn.innerText = "⏳ 圖片生成中...";
       exportBtn.disabled = true;
 
-      html2canvas(exportArea, {
-        backgroundColor: '#1e293b',
-        scale: 2
-      }).then(canvas => {
+      html2canvas(exportArea, { backgroundColor: '#1e293b', scale: 2 }).then(canvas => {
         const image = canvas.toDataURL("image/png");
         const link = document.createElement('a');
         link.href = image;
@@ -644,7 +635,7 @@
         exportBtn.innerText = "📸 匯出分析圖表圖片 (PNG)";
         exportBtn.disabled = false;
       }).catch(err => {
-        alert("匯出圖片失敗：", err);
+        alert("匯出圖片失敗：" + err);
         exportBtn.innerText = "📸 匯出分析圖表圖片 (PNG)";
         exportBtn.disabled = false;
       });
@@ -667,7 +658,6 @@
       }
     });
 
-    // 管理員登入 / 登出觸發
     authBtn.onclick = async () => {
       if (auth.currentUser) {
         await signOut(auth);
@@ -695,18 +685,15 @@
         document.getElementById('login-email').value = '';
         document.getElementById('login-password').value = '';
       } catch (err) {
-        alert("登入失敗：帳號或密碼錯誤！");
+        alert("登入失敗：帳號或密碼錯誤！(" + err.message + ")");
       }
     };
 
     document.getElementById('do-login-btn').onclick = doLogin;
-
-    // 💡 優化 2: 按 Enter 鍵即可快捷登入
     document.getElementById('login-password').addEventListener('keyup', (e) => {
       if (e.key === 'Enter') doLogin();
     });
 
-    // 💡 優化 3: 批次修改類別名稱
     window.editMaterialCategory = (oldMaterialName) => {
       if (!auth.currentUser) {
         alert("權限不足：必須登入管理員帳號才能修改資料！");
