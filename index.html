@@ -614,10 +614,27 @@
       return false;
     }
 
-    // 渲染表格（支援列位拖曳）
+    // 渲染表格（包含 Material Rowspan 合併邏輯與列位拖曳）
     function renderTable() {
       tbody.innerHTML = '';
 
+      // 1. 計算每個 Material 連續出現的次數 (用於 Rowspan 合併)
+      const materialSpanMap = [];
+      let i = 0;
+      while (i < roadmapData.length) {
+        const currentMat = roadmapData[i].material || '';
+        let span = 1;
+        while (i + span < roadmapData.length && (roadmapData[i + span].material || '') === currentMat) {
+          span++;
+        }
+        materialSpanMap[i] = span;
+        for (let j = 1; j < span; j++) {
+          materialSpanMap[i + j] = 0; // 0 代表被合併，跳過渲染
+        }
+        i += span;
+      }
+
+      // 2. 渲染每一列
       roadmapData.forEach((row, index) => {
         const tr = document.createElement('tr');
 
@@ -637,22 +654,28 @@
 
         // 動態根據欄位順序渲染內容
         columns.forEach(col => {
-          const td = document.createElement('td');
-          if (col.key === 'action') {
+          if (col.key === 'material') {
+            const span = materialSpanMap[index];
+            if (span > 0) { // 只在連續區塊的第一列繪製
+              const td = document.createElement('td');
+              td.className = 'editable material-header';
+              td.rowSpan = span;
+              td.innerText = row.material || '-';
+              td.ondblclick = () => editMaterialCategory(index);
+              tr.appendChild(td);
+            }
+          } else if (col.key === 'action') {
+            const td = document.createElement('td');
             td.style.textAlign = 'center';
             td.innerHTML = `<button class="action-btn" onclick="deleteRow(${index})" title="刪除此行">🗑️</button>`;
-          } else if (col.key === 'material') {
-            td.className = 'editable';
-            td.style.fontWeight = 'bold';
-            td.style.color = 'var(--accent)';
-            td.innerText = row.material || '-';
-            td.ondblclick = () => editMaterialCategory(index);
+            tr.appendChild(td);
           } else {
+            const td = document.createElement('td');
             td.className = 'editable';
             td.innerText = row[col.key] || '-';
             td.ondblclick = () => editCell(index, col.key);
+            tr.appendChild(td);
           }
-          tr.appendChild(td);
         });
 
         tbody.appendChild(tr);
