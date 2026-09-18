@@ -247,6 +247,55 @@
     .action-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; }
     body:not(.read-only) .action-btn:hover { color: var(--danger); }
     body.read-only .action-btn { opacity: 0.3; cursor: not-allowed; }
+
+    /* 管理員登入 Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(11, 19, 41, 0.85);
+      backdrop-filter: blur(4px);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    .modal-card h3 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      color: var(--accent);
+    }
+    .modal-input {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-size: 0.9rem;
+    }
+    .modal-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 8px;
+    }
   </style>
 </head>
 <body class="read-only">
@@ -334,12 +383,24 @@
     </div>
   </div>
 
+  <!-- 管理員登入 Modal -->
+  <div id="login-modal" class="modal-overlay">
+    <div class="modal-card">
+      <h3>🔐 管理員登入</h3>
+      <input type="email" id="login-email" class="modal-input" placeholder="管理員 Email">
+      <input type="password" id="login-password" class="modal-input" placeholder="密碼">
+      <div class="modal-actions">
+        <button id="cancel-login-btn" class="btn">取消</button>
+        <button id="do-login-btn" class="btn btn-primary">確認登入</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // ✅ 已更新為你的全新金鑰 cnclist-8735e
     const firebaseConfig = {
       apiKey: "AIzaSyAe38sw2PpDRgseHnz5654ZHwBfyDkgJEM",
       authDomain: "cnclist-8735e.firebaseapp.com",
@@ -415,8 +476,9 @@
     const analyticsTbody = document.getElementById('analytics-tbody');
     const authBtn = document.getElementById('auth-btn');
     const authStatus = document.getElementById('auth-status');
+    const loginModal = document.getElementById('login-modal');
 
-    // 📡 🔥 雲端實時監聽：任何人在 Firestore 變更資料，頁面都會自動更新
+    // 📡 雲端實時監聽
     const docRef = doc(db, "capacity_roadmap", "main_data");
     onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -424,7 +486,6 @@
         renderTable();
         renderAnalytics();
       } else {
-        // 如果雲端尚無資料，初始化寫入預設資料
         saveToFirestore(initialData);
       }
     });
@@ -456,6 +517,9 @@
       tbody.innerHTML = '';
       let currentMaterial = '';
 
+      // 自動排序確保同類別放在一起，解決首欄合併錯位問題
+      roadmapData.sort((a, b) => a.material.localeCompare(b.material));
+
       roadmapData.forEach((row, index) => {
         const tr = document.createElement('tr');
 
@@ -482,7 +546,6 @@
       });
     }
 
-    // 機台增減動態分析渲染引擎
     function renderAnalytics() {
       analyticsTbody.innerHTML = '';
       let exp2026Count = 0;
@@ -595,19 +658,35 @@
       }
     });
 
+    // 管理員登入 / 登出觸發
     authBtn.onclick = async () => {
       if (auth.currentUser) {
         await signOut(auth);
       } else {
-        const email = prompt("請輸入管理者 Email：");
-        const password = prompt("請輸入密碼：");
-        if (email && password) {
-          try {
-            await signInWithEmailAndPassword(auth, email, password);
-          } catch (err) {
-            alert("登入失敗：帳號或密碼錯誤！");
-          }
-        }
+        loginModal.style.display = 'flex';
+      }
+    };
+
+    document.getElementById('cancel-login-btn').onclick = () => {
+      loginModal.style.display = 'none';
+    };
+
+    document.getElementById('do-login-btn').onclick = async () => {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+
+      if (!email || !password) {
+        alert("請輸入 Email 與密碼！");
+        return;
+      }
+
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        loginModal.style.display = 'none';
+        document.getElementById('login-email').value = '';
+        document.getElementById('login-password').value = '';
+      } catch (err) {
+        alert("登入失敗：帳號或密碼錯誤！");
       }
     };
 
