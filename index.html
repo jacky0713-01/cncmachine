@@ -198,6 +198,8 @@
       font-weight: 800;
       color: var(--accent);
       background-color: rgba(15, 23, 42, 0.5);
+      vertical-align: middle;
+      border-right: 1px solid var(--border-color);
     }
 
     /* 分析頁面面板卡牌 */
@@ -513,30 +515,37 @@
       }
     };
 
+    // 💡 優化 1: 使用 rowspan 進行跨行合併，解決隱藏格造成的對齊問題
     function renderTable() {
       tbody.innerHTML = '';
-      let currentMaterial = '';
 
-      // 自動排序確保同類別放在一起，解決首欄合併錯位問題
+      // 確保同類別聚在一起
       roadmapData.sort((a, b) => a.material.localeCompare(b.material));
+
+      // 計算各個 Material 的出現次數 (rowspan)
+      const materialCounts = {};
+      roadmapData.forEach(item => {
+        materialCounts[item.material] = (materialCounts[item.material] || 0) + 1;
+      });
+
+      const renderedMaterials = new Set();
 
       roadmapData.forEach((row, index) => {
         const tr = document.createElement('tr');
 
-        let materialCellHtml = '';
-        if (row.material !== currentMaterial) {
-          currentMaterial = row.material;
-          materialCellHtml = `<td class="material-header editable" ondblclick="editCell(${index}, 'material')">${row.material}</td>`;
-        } else {
-          materialCellHtml = `<td class="material-header editable" ondblclick="editCell(${index}, 'material')" style="color: transparent;">${row.material}</td>`;
+        let materialTd = '';
+        if (!renderedMaterials.has(row.material)) {
+          renderedMaterials.add(row.material);
+          const count = materialCounts[row.material];
+          materialTd = `<td class="material-header editable" rowspan="${count}" ondblclick="editMaterialCategory('${row.material}')">${row.material}</td>`;
         }
 
         tr.innerHTML = `
-          ${materialCellHtml}
+          ${materialTd}
           <td class="editable" ondblclick="editCell(${index}, 'process')">${row.process || '-'}</td>
           <td class="editable" ondblclick="editCell(${index}, 'y2025')">${row.y2025 || '-'}</td>
           <td class="editable" ondblclick="editCell(${index}, 'y2026')">${row.y2026 || '-'}</td>
-          <td class="editable highlight-val" ondblclick="editCell(${index}, 'y2026_2h')">${row.y2026_2h || '-'}</td>
+          <td class="editable" ondblclick="editCell(${index}, 'y2026_2h')">${row.y2026_2h || '-'}</td>
           <td style="text-align: center;">
             <button class="action-btn" onclick="deleteRow(${index})" title="刪除此行">🗑️</button>
           </td>
@@ -671,7 +680,7 @@
       loginModal.style.display = 'none';
     };
 
-    document.getElementById('do-login-btn').onclick = async () => {
+    const doLogin = async () => {
       const email = document.getElementById('login-email').value;
       const password = document.getElementById('login-password').value;
 
@@ -690,6 +699,31 @@
       }
     };
 
+    document.getElementById('do-login-btn').onclick = doLogin;
+
+    // 💡 優化 2: 按 Enter 鍵即可快捷登入
+    document.getElementById('login-password').addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') doLogin();
+    });
+
+    // 💡 優化 3: 批次修改類別名稱
+    window.editMaterialCategory = (oldMaterialName) => {
+      if (!auth.currentUser) {
+        alert("權限不足：必須登入管理員帳號才能修改資料！");
+        return;
+      }
+
+      const newMaterialName = prompt("請輸入新的 Material 類別名稱：", oldMaterialName);
+      if (newMaterialName && newMaterialName.trim() !== "" && newMaterialName !== oldMaterialName) {
+        roadmapData.forEach(row => {
+          if (row.material === oldMaterialName) {
+            row.material = newMaterialName.trim();
+          }
+        });
+        saveToFirestore(roadmapData);
+      }
+    };
+
     window.editCell = (index, key) => {
       if (!auth.currentUser) {
         alert("權限不足：必須登入管理員帳號才能修改資料！");
@@ -697,7 +731,6 @@
       }
 
       const fieldMap = {
-        material: 'Material (材料類別)',
         process: 'Process / Machine (機台/工序)',
         y2025: '2025 數據',
         y2026: '2026 數據',
