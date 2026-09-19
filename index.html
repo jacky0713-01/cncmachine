@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Enterprise Capacity Roadmap & Machine Analytics</title>
-  <!-- 引入 html2canvas 程式庫以支援一鍵截圖匯出圖片 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     :root {
@@ -26,7 +25,6 @@
       height: 100%;
       margin: 0;
       padding: 0;
-      overflow: hidden;
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       background-color: var(--bg-color);
       color: var(--text-main);
@@ -35,8 +33,17 @@
     .app-container {
       display: flex;
       flex-direction: column;
-      height: 100vh;
+      min-height: 100vh;
       padding: 16px 24px;
+    }
+
+    /* 固定上方區域 (凍結視窗) */
+    .sticky-top-section {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background-color: var(--bg-color);
+      padding-bottom: 8px;
     }
 
     header {
@@ -44,7 +51,6 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 12px;
-      flex-shrink: 0;
       border-bottom: 1px solid var(--border-color);
       padding-bottom: 12px;
     }
@@ -87,12 +93,10 @@
       color: var(--text-muted);
     }
 
-    /* 分頁標籤列 (Tabs) */
     .nav-tabs {
       display: flex;
       gap: 8px;
       margin-bottom: 12px;
-      flex-shrink: 0;
     }
 
     .tab-btn {
@@ -116,11 +120,10 @@
 
     .toolbar {
       display: flex;
-      gap: 12px;
-      margin-bottom: 12px;
+      gap: 8px;
+      margin-bottom: 8px;
       flex-wrap: wrap;
       align-items: center;
-      flex-shrink: 0;
     }
 
     .btn {
@@ -147,20 +150,16 @@
     .btn-danger { background-color: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
     .btn-danger:hover { background-color: #dc2626; color: #fff; }
 
-    /* 視圖內容區塊 */
     .tab-content {
       display: none;
-      flex: 1;
-      overflow: auto;
       background-color: var(--card-bg);
       border-radius: 10px;
       border: 1px solid var(--border-color);
       box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      margin-bottom: 24px;
     }
 
-    .tab-content.active {
-      display: block;
-    }
+    .tab-content.active { display: block; }
 
     table {
       width: 100%;
@@ -168,6 +167,7 @@
       text-align: left;
     }
 
+    /* 凍結表格標頭 Header */
     th {
       background-color: #0f172a;
       color: #94a3b8;
@@ -178,17 +178,41 @@
       padding: 12px 16px;
       border-bottom: 2px solid var(--border-color);
       position: sticky;
-      top: 0;
-      z-index: 10;
+      top: 135px; /* 對應 sticky-top-section 的高度 */
+      z-index: 50;
       user-select: none;
     }
 
-    body:not(.read-only) th.draggable-col {
-      cursor: grab;
+    .th-header-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
     }
-    body:not(.read-only) th.draggable-col:active {
-      cursor: grabbing;
+
+    .th-title {
+      cursor: pointer;
+      flex: 1;
     }
+    .th-title:hover {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+
+    .btn-del-col {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    .btn-del-col:hover { color: var(--danger); background: rgba(239, 68, 68, 0.1); }
+    body.read-only .btn-del-col { display: none; }
+
+    body:not(.read-only) th.draggable-col { cursor: grab; }
+    body:not(.read-only) th.draggable-col:active { cursor: grabbing; }
 
     td {
       padding: 9px 16px;
@@ -198,9 +222,7 @@
       vertical-align: middle;
     }
 
-    tr:hover td {
-      background-color: rgba(255, 255, 255, 0.03);
-    }
+    tr:hover td { background-color: rgba(255, 255, 255, 0.03); }
 
     .drag-handle {
       cursor: grab;
@@ -210,19 +232,11 @@
       width: 30px;
       user-select: none;
     }
-    .drag-handle:active {
-      cursor: grabbing;
-    }
-    body.read-only .drag-handle {
-      display: none;
-    }
+    .drag-handle:active { cursor: grabbing; }
+    body.read-only .drag-handle { display: none; }
 
-    .drag-over-row {
-      border-top: 2px solid var(--accent) !important;
-    }
-    .drag-over-col {
-      border-left: 2px solid var(--accent) !important;
-    }
+    .drag-over-row { border-top: 2px solid var(--accent) !important; }
+    .drag-over-col { border-left: 2px solid var(--accent) !important; }
 
     .material-header {
       font-weight: 800;
@@ -232,7 +246,6 @@
       border-right: 1px solid var(--border-color);
     }
 
-    /* 分析頁面面板卡牌 */
     .analytics-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -247,17 +260,8 @@
       padding: 16px;
     }
 
-    .stat-card-title {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      margin-bottom: 6px;
-    }
-
-    .stat-card-value {
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: var(--success);
-    }
+    .stat-card-title { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px; }
+    .stat-card-value { font-size: 1.6rem; font-weight: 700; color: var(--success); }
 
     .delta-badge {
       display: inline-block;
@@ -280,7 +284,7 @@
     body:not(.read-only) .action-btn:hover { color: var(--danger); }
     body.read-only .action-btn { opacity: 0.3; cursor: not-allowed; }
 
-    /* 管理員登入 Modal */
+    /* Modal */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -303,11 +307,7 @@
       max-width: 360px;
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
     }
-    .modal-card h3 {
-      margin-top: 0;
-      margin-bottom: 16px;
-      color: var(--accent);
-    }
+    .modal-card h3 { margin-top: 0; margin-bottom: 16px; color: var(--accent); }
     .modal-input {
       width: 100%;
       padding: 10px 12px;
@@ -318,42 +318,36 @@
       color: var(--text-main);
       font-size: 0.9rem;
     }
-    .modal-input:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 8px;
-    }
+    .modal-input:focus { outline: none; border-color: var(--accent); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
   </style>
 </head>
 <body class="read-only">
 
   <div class="app-container">
-    <header>
-      <div class="brand-title">
-        <span class="badge-pro">PRO ENTERPRISE</span>
-        <h1>2026 Capacity Roadmap & Machine Analytics</h1>
-      </div>
-      <div class="auth-box">
-        <span id="auth-status" class="auth-status">狀態：唯讀模式</span>
-        <button id="auth-btn" class="btn btn-primary">管理員登入</button>
-      </div>
-    </header>
+    <!-- 凍結頂部區塊 -->
+    <div class="sticky-top-section">
+      <header>
+        <div class="brand-title">
+          <span class="badge-pro">PRO ENTERPRISE</span>
+          <h1>2026 Capacity Roadmap & Machine Analytics</h1>
+        </div>
+        <div class="auth-box">
+          <span id="auth-status" class="auth-status">狀態：唯讀模式</span>
+          <button id="auth-btn" class="btn btn-primary">管理員登入</button>
+        </div>
+      </header>
 
-    <!-- 分頁導覽 -->
-    <div class="nav-tabs">
-      <button class="tab-btn active" onclick="switchTab('roadmap-tab', event)">📊 Capacity Roadmap 圖鑑表</button>
-      <button class="tab-btn" onclick="switchTab('analytics-tab', event)">📈 機台增減動態分析</button>
-    </div>
+      <!-- 分頁導覽 -->
+      <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('roadmap-tab', event)">📊 Capacity Roadmap 圖鑑表</button>
+        <button class="tab-btn" onclick="switchTab('analytics-tab', event)">📈 機台增減動態分析</button>
+      </div>
 
-    <!-- 頁面一：Roadmap 圖鑑表 -->
-    <div id="roadmap-tab" class="tab-content active">
-      <div class="toolbar" style="padding: 12px 16px 0 16px;">
+      <!-- 工具列 -->
+      <div class="toolbar">
         <button id="add-row-btn" class="btn btn-primary">➕ 新增資料列</button>
+        <button id="add-col-btn" class="btn btn-primary">➕ 新增欄位</button>
         <button id="import-csv-btn" class="btn btn-success">📥 匯入 CSV</button>
         <button id="export-json-btn" class="btn">💾 備份 JSON</button>
         <button id="import-btn" class="btn">📤 匯入 JSON 備份</button>
@@ -361,7 +355,11 @@
         <input type="file" id="import-file-input" accept=".json" style="display: none;">
         <input type="file" id="import-csv-input" accept=".csv" style="display: none;">
       </div>
-      <div id="roadmap-export-area" style="padding: 12px 16px;">
+    </div>
+
+    <!-- 頁面一：Roadmap 圖鑑表 -->
+    <div id="roadmap-tab" class="tab-content active">
+      <div id="roadmap-export-area">
         <table id="main-roadmap-table">
           <thead>
             <tr id="table-header-row">
@@ -444,7 +442,6 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // 預設欄位定義
     let columns = [
       { key: 'material', label: 'Material', width: '15%' },
       { key: 'process', label: 'Process / Machine', width: '25%' },
@@ -511,7 +508,6 @@
     const authStatus = document.getElementById('auth-status');
     const loginModal = document.getElementById('login-modal');
 
-    // 📡 雲端實時監聽
     const docRef = doc(db, "capacity_roadmap", "main_data");
     onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -530,10 +526,9 @@
         renderAnalytics();
       }
     }, (error) => {
-      console.warn("Firestore 監聽通知：", error.message);
+      console.warn("Firestore 監聯通知：", error.message);
     });
 
-    // 💾 儲存資料至 Firestore 雲端
     async function saveToFirestore(data, cols = columns) {
       if (!auth.currentUser) {
         alert("請先進行管理員登入，才能將資料同步至雲端！");
@@ -542,12 +537,11 @@
       try {
         await setDoc(docRef, { list: data, columns: cols });
       } catch (e) {
-        console.error("雲端同步失敗詳細錯誤: ", e);
-        alert(`資料儲存至雲端失敗：${e.message}\n請確認 Firebase Rules 權限設定！`);
+        console.error("雲端同步失敗: ", e);
+        alert(`資料儲存至雲端失敗：${e.message}`);
       }
     }
 
-    // 分頁切換
     window.switchTab = (tabId, e) => {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -560,14 +554,39 @@
       }
     };
 
-    // 渲染表頭（支援欄位拖曳）
+    // 渲染表頭（支援名稱編輯、刪除欄位與拖曳）
     function renderTableHeader() {
       headerRow.innerHTML = '<th style="width: 35px;" class="no-drag"></th>';
       
       columns.forEach((col, index) => {
         const th = document.createElement('th');
         th.style.width = col.width || 'auto';
-        th.innerText = col.label;
+
+        const container = document.createElement('div');
+        container.className = 'th-header-content';
+
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'th-title';
+        titleSpan.innerText = col.label;
+        titleSpan.title = "雙擊此處修改欄位名稱";
+        titleSpan.ondblclick = () => editColumnName(index);
+
+        container.appendChild(titleSpan);
+
+        // 不可刪除 Material, Process 與 Action 欄位
+        if (col.key !== 'material' && col.key !== 'process' && col.key !== 'action') {
+          const delBtn = document.createElement('button');
+          delBtn.className = 'btn-del-col';
+          delBtn.innerText = '🗑️';
+          delBtn.title = '刪除此欄位';
+          delBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteColumn(index);
+          };
+          container.appendChild(delBtn);
+        }
+
+        th.appendChild(container);
 
         if (!col.noDrag) {
           th.classList.add('draggable-col');
@@ -584,6 +603,56 @@
         headerRow.appendChild(th);
       });
     }
+
+    // 修改欄位名稱
+    window.editColumnName = (index) => {
+      if (!auth.currentUser) {
+        alert("權限不足：必須登入管理員帳號才能修改欄位名稱！");
+        return;
+      }
+      const oldLabel = columns[index].label;
+      const newLabel = prompt("請輸入新的欄位名稱：", oldLabel);
+      if (newLabel !== null && newLabel.trim() !== "") {
+        columns[index].label = newLabel.trim();
+        saveToFirestore(roadmapData, columns);
+      }
+    };
+
+    // 新增欄位
+    document.getElementById('add-col-btn').onclick = () => {
+      if (!auth.currentUser) {
+        alert("權限不足：必須登入管理員帳號才能新增欄位！");
+        return;
+      }
+      const colLabel = prompt("請輸入新欄位名稱 (例如：2027 預估)：", "新欄位");
+      if (!colLabel) return;
+
+      const colKey = 'col_' + Date.now();
+      // 在「操作」欄位前插入新欄位
+      const actionIndex = columns.findIndex(c => c.key === 'action');
+      const newColObj = { key: colKey, label: colLabel.trim(), width: '15%' };
+
+      if (actionIndex !== -1) {
+        columns.splice(actionIndex, 0, newColObj);
+      } else {
+        columns.push(newColObj);
+      }
+
+      saveToFirestore(roadmapData, columns);
+    };
+
+    // 刪除欄位
+    window.deleteColumn = (index) => {
+      if (!auth.currentUser) {
+        alert("權限不足：必須登入管理員帳號才能刪除欄位！");
+        return;
+      }
+      const col = columns[index];
+      if (confirm(`確定要刪除欄位「${col.label}」嗎？這將會清除所有資料列中該欄位的數據！`)) {
+        columns.splice(index, 1);
+        saveToFirestore(roadmapData, columns);
+      }
+    };
 
     let draggedColIndex = null;
     function handleColDragStart(e, index) {
@@ -614,11 +683,10 @@
       return false;
     }
 
-    // 渲染表格（包含 Material Rowspan 合併邏輯與列位拖曳）
+    // 渲染表格（Material 連續合併）
     function renderTable() {
       tbody.innerHTML = '';
 
-      // 1. 計算每個 Material 連續出現的次數 (用於 Rowspan 合併)
       const materialSpanMap = [];
       let i = 0;
       while (i < roadmapData.length) {
@@ -629,12 +697,11 @@
         }
         materialSpanMap[i] = span;
         for (let j = 1; j < span; j++) {
-          materialSpanMap[i + j] = 0; // 0 代表被合併，跳過渲染
+          materialSpanMap[i + j] = 0;
         }
         i += span;
       }
 
-      // 2. 渲染每一列
       roadmapData.forEach((row, index) => {
         const tr = document.createElement('tr');
 
@@ -646,17 +713,15 @@
           tr.addEventListener('dragleave', handleRowDragLeave);
         }
 
-        // 拖曳 Handle 欄位
         const handleTd = document.createElement('td');
         handleTd.className = 'drag-handle';
         handleTd.innerHTML = '⋮⋮';
         tr.appendChild(handleTd);
 
-        // 動態根據欄位順序渲染內容
         columns.forEach(col => {
           if (col.key === 'material') {
             const span = materialSpanMap[index];
-            if (span > 0) { // 只在連續區塊的第一列繪製
+            if (span > 0) {
               const td = document.createElement('td');
               td.className = 'editable material-header';
               td.rowSpan = span;
@@ -747,7 +812,6 @@
       document.getElementById('stat-20262h-exp').innerText = `${exp20262hCount} 項機台擴增`;
     }
 
-    // 分析圖表圖片匯出
     document.getElementById('export-image-btn').onclick = () => {
       const exportArea = document.getElementById('analytics-export-area');
       const exportBtn = document.getElementById('export-image-btn');
@@ -773,7 +837,6 @@
       });
     };
 
-    // 登入狀態監控
     onAuthStateChanged(auth, (user) => {
       if (user) {
         document.body.classList.remove("read-only");
@@ -784,7 +847,7 @@
       } else {
         document.body.classList.add("read-only");
         authStatus.innerText = "狀態：唯讀模式";
-        authBtn.innerText = "管理員登入";
+        authBtn.innerText = "管理員登向";
         authBtn.classList.remove("btn-danger");
         authBtn.classList.add("btn-primary");
       }
@@ -894,7 +957,6 @@
       saveToFirestore(roadmapData, columns);
     };
 
-    // JSON 備份匯出與匯入
     document.getElementById('export-json-btn').onclick = () => {
       const exportObj = { columns, list: roadmapData };
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj, null, 2));
@@ -944,7 +1006,6 @@
       reader.readAsText(file);
     };
 
-    // CSV 匯入功能
     const importCsvBtn = document.getElementById('import-csv-btn');
     const importCsvInput = document.getElementById('import-csv-input');
 
@@ -970,7 +1031,6 @@
             return;
           }
 
-          // 解析 CSV 表頭
           const headers = rows[0].map(h => h.trim().toLowerCase());
           const matIdx = headers.findIndex(h => h.includes('material'));
           const procIdx = headers.findIndex(h => h.includes('process') || h.includes('machine'));
@@ -1007,7 +1067,6 @@
       reader.readAsText(file);
     };
 
-    // 標準 CSV 解析函式 (支援雙引號與換行)
     function parseCSV(text) {
       let p = '', c = '', r = [];
       let q = false;
@@ -1046,7 +1105,7 @@
         return;
       }
 
-      if (confirm("警告：這將會清除雲端上的所有修改，恢復成預設數值！確定要重置嗎？")) {
+      if (confirm("警告：這將會清除雲端上的所有修改，恢復成預設數值與預設欄位！確定要重置嗎？")) {
         roadmapData = [...initialData];
         columns = [
           { key: 'material', label: 'Material', width: '15%' },
