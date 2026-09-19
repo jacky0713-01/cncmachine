@@ -22,7 +22,6 @@
     * { box-sizing: border-box; }
 
     html, body {
-      height: 100%;
       margin: 0;
       padding: 0;
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -33,17 +32,16 @@
     .app-container {
       display: flex;
       flex-direction: column;
-      min-height: 100vh;
       padding: 16px 24px;
     }
 
-    /* 固定上方區域 (凍結視窗) */
-    .sticky-top-section {
+    /* 頂部固定區域 */
+    .sticky-header-wrapper {
       position: sticky;
       top: 0;
       z-index: 100;
       background-color: var(--bg-color);
-      padding-bottom: 8px;
+      padding-top: 8px;
     }
 
     header {
@@ -121,7 +119,7 @@
     .toolbar {
       display: flex;
       gap: 8px;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
       align-items: center;
     }
@@ -167,7 +165,7 @@
       text-align: left;
     }
 
-    /* 凍結表格標頭 Header */
+    /* 凍結表格標頭 Header：使用容器的邊界進行黏著 */
     th {
       background-color: #0f172a;
       color: #94a3b8;
@@ -178,7 +176,7 @@
       padding: 12px 16px;
       border-bottom: 2px solid var(--border-color);
       position: sticky;
-      top: 135px; /* 對應 sticky-top-section 的高度 */
+      top: 0; /* 配合父層容器固定 */
       z-index: 50;
       user-select: none;
     }
@@ -325,8 +323,8 @@
 <body class="read-only">
 
   <div class="app-container">
-    <!-- 凍結頂部區塊 -->
-    <div class="sticky-top-section">
+    <!-- 固定頂部控制列區塊 -->
+    <div class="sticky-header-wrapper" id="sticky-header">
       <header>
         <div class="brand-title">
           <span class="badge-pro">PRO ENTERPRISE</span>
@@ -508,6 +506,17 @@
     const authStatus = document.getElementById('auth-status');
     const loginModal = document.getElementById('login-modal');
 
+    // 自動計算頂部固定高度以利精準對齊
+    function updateStickyPosition() {
+      const headerHeight = document.getElementById('sticky-header').offsetHeight;
+      const ths = document.querySelectorAll('th');
+      ths.forEach(th => {
+        th.style.top = `${headerHeight}px`;
+      });
+    }
+
+    window.addEventListener('resize', updateStickyPosition);
+
     const docRef = doc(db, "capacity_roadmap", "main_data");
     onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -526,7 +535,7 @@
         renderAnalytics();
       }
     }, (error) => {
-      console.warn("Firestore 監聯通知：", error.message);
+      console.warn("Firestore 監聽通知：", error.message);
     });
 
     async function saveToFirestore(data, cols = columns) {
@@ -552,9 +561,9 @@
       if (tabId === 'analytics-tab') {
         renderAnalytics();
       }
+      setTimeout(updateStickyPosition, 50);
     };
 
-    // 渲染表頭（支援名稱編輯、刪除欄位與拖曳）
     function renderTableHeader() {
       headerRow.innerHTML = '<th style="width: 35px;" class="no-drag"></th>';
       
@@ -573,7 +582,6 @@
 
         container.appendChild(titleSpan);
 
-        // 不可刪除 Material, Process 與 Action 欄位
         if (col.key !== 'material' && col.key !== 'process' && col.key !== 'action') {
           const delBtn = document.createElement('button');
           delBtn.className = 'btn-del-col';
@@ -602,9 +610,10 @@
         }
         headerRow.appendChild(th);
       });
+
+      setTimeout(updateStickyPosition, 10);
     }
 
-    // 修改欄位名稱
     window.editColumnName = (index) => {
       if (!auth.currentUser) {
         alert("權限不足：必須登入管理員帳號才能修改欄位名稱！");
@@ -618,7 +627,6 @@
       }
     };
 
-    // 新增欄位
     document.getElementById('add-col-btn').onclick = () => {
       if (!auth.currentUser) {
         alert("權限不足：必須登入管理員帳號才能新增欄位！");
@@ -628,7 +636,6 @@
       if (!colLabel) return;
 
       const colKey = 'col_' + Date.now();
-      // 在「操作」欄位前插入新欄位
       const actionIndex = columns.findIndex(c => c.key === 'action');
       const newColObj = { key: colKey, label: colLabel.trim(), width: '15%' };
 
@@ -641,7 +648,6 @@
       saveToFirestore(roadmapData, columns);
     };
 
-    // 刪除欄位
     window.deleteColumn = (index) => {
       if (!auth.currentUser) {
         alert("權限不足：必須登入管理員帳號才能刪除欄位！");
@@ -683,7 +689,6 @@
       return false;
     }
 
-    // 渲染表格（Material 連續合併）
     function renderTable() {
       tbody.innerHTML = '';
 
@@ -847,7 +852,7 @@
       } else {
         document.body.classList.add("read-only");
         authStatus.innerText = "狀態：唯讀模式";
-        authBtn.innerText = "管理員登向";
+        authBtn.innerText = "管理員登入";
         authBtn.classList.remove("btn-danger");
         authBtn.classList.add("btn-primary");
       }
